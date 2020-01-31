@@ -44,6 +44,6 @@ class Worker:
   
   def clone(self):
     '''
-      returns new genes to create new worker
+      returns new worker with new genes
     '''
     raise NotImplementedError
