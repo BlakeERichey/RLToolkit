@@ -15,6 +15,7 @@ class ReplayBuffer:
       Initializes an empty ReplayBuffer with a max size of `max_size`.
     """
 
+    self.size = 0
     self.memory = []
     self.max_size = max_size
   
@@ -28,14 +29,16 @@ class ReplayBuffer:
     """
 
     self.memory.append(experience)
+    self.size+=1
     
     if len(self.memory) > self.max_size:
       del self.memory[0]
+      self.size-=1
   
   def get_batch(self,batch_size=1):
     """
       Grabs `batch_size` random elements from ReplayBuffer and returns
       them as a numpy array.
     """
-
-    return np.array(random.sample(self.memory, batch_size))
+    batch_size = min(self.size, batch_size)
+    return random.sample(self.memory, batch_size)
