@@ -83,7 +83,6 @@ class Checkpoint:
         self.best_model = obj.nn
     
     if updated:
-      print('Updated!')
       if self.save_weights_only:
         self.best_model.save_weights(self.filename)
       else:
