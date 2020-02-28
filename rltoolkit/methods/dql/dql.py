@@ -79,7 +79,7 @@ class DQL:
     
     return nn
 
-  def test(self, nn, env, episodes=1):
+  def test(self, nn, env, episodes=1, render=True):
     """
       Test neural network against environment. Renders at each step for
       users to view results.
@@ -102,9 +102,11 @@ class DQL:
       while not done:
         action = self._predict(envstate)
         envstate, reward, done, _ = self.env.step(action)
-        env.render()
         rewards.append(reward)
         steps+=1
+        
+        if render:
+          env.render()
       
       results = f'Episode: {i+1}/{episodes} | ' + \
         f'Reward: {sum(rewards):.4f}'
