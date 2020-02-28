@@ -6,5 +6,5 @@ setup(name='rltoolkit',
       description='RL Toolkit',
       author = 'Blake Richey',
       author_email='blake.e.richey@gmail.com',
-      install_requires=[],
+      install_requires=['keras>=2.3.1', 'gym>=0.16.0', 'tensorflow>=1.14'],
       )
