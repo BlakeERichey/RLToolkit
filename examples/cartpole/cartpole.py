@@ -4,10 +4,13 @@ from keras.models import Sequential, load_model
 from keras.layers import Dense
 from keras.optimizers import Adam
 from rltoolkit.methods import DQL
-from rltoolkit.utils import Checkpoint
+from rltoolkit.utils import Checkpoint, Graph
 
 env = gym.make('CartPole-v0')
-# env = gym.make('MountainCarContinuous-v0')
+try:
+  print(env.unwrapped.get_action_meanings())
+except:
+  pass
 
 #Build network
 model = Sequential()
@@ -21,10 +24,16 @@ model.summary()
 #Initialize Deep Q Learning Method
 method = DQL(rb_size=500, replay_batch_size=32)
 
+#Enable graphing of rewards
+graph = Graph()
 #Make a checkpoint to save best model during training
 ckpt = Checkpoint('cartpole.h5')
 #Train neural network for 50 episodes
-method.train(model, env, 50, epsilon_decay=.9, callbacks=[ckpt])
+method.train(model, env, 50, epsilon_decay=.9, callbacks=[ckpt, graph])
+
+#Save and show rewards
+graph.show()
+graph.save('cartpole.png')
 
 #Load best saved model
 model = load_model('cartpole.h5')
