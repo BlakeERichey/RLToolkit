@@ -2,7 +2,6 @@ import numpy as np
 import random
 import keras
 from keras.layers import Dense
-from keras import backend
 
 
 class Colony:
@@ -12,32 +11,34 @@ class Colony:
         self.weights = nn.get_weights()
         self.workers = list()
 
-    def set_workers(self, worker):
-        self.workers.append(worker)
-
     def fitness(self, env, sharpness=1, validate=False):
         if self.worker == []:
             print('Colony has no worker.')
             return None
         
         model = keras.models.clone_model(self.nn)
-        # _set_weights(model)
         results = list()
-        best_worker = None
-        
-        for worker in self.workers:
-            result, v_result = results.append(worker.fitness(env, self.model, sharpness, validate))
 
-            if best_worker is None:
-                best_worker = worker
-                best_worker_result = result
-                best_worker_v_result = v_result
-                continue
+        best_worker = self.workers[0]
+        result, v_result = worker.fitness(env, self.model, sharpness, validate)
+        best_worker_result = result
+        best_worker_v_result = v_result
 
-            if result > best_worker_result:
-                best_worker = worker
-                best_worker_result = result
-                best_worker_v_result = v_result
+        if validate:
+            for worker in self.workers[1:]:
+                result, v_result = worker.fitness(env, self.model, sharpness, validate)
+
+                if result > best_worker_result and v_result > best_worker_v_result:
+                    best_worker = worker
+                    best_worker_result = result
+                    best_worker_v_result = v_result       
+        else:
+            for worker in self.workers[1:]:
+                result, v_result = worker.fitness(env, self.model, sharpness, validate)
+
+                if result > best_worker_result:
+                    best_worker = worker
+                    best_worker_result = result
         
         return best_worker.fitness()
 
@@ -50,9 +51,6 @@ class Colony:
             return None
 
         new_weights = np.zeros_like(weights1)
-
-        # seeds = range(1, len(new_weights)+1)
-        # seeds = random.shuffle(seed)
         
         for i, weight1, weight2 in zip(range(len(new_weights)), weights1, weights2):
             seeds = random.sample(range(len(new_weights[i])), random.choice(range(len(new_weights[i]))))
@@ -61,8 +59,7 @@ class Colony:
             new_weights[i][seed] = weight1[seed]
         for seed in range(len(new_weights[i])):
             if seed not in seeds:
-                new_weights[i][seed] = weight2[seed]
-                
+                new_weights[i][seed] = weight2[seed]   
 
         new_colony = Colony(self.nn)
         new_colony.weights = self.weights
@@ -72,13 +69,9 @@ class Colony:
         return new_colony
 
     def mutate(self):
-        [worker.mutate() for worker in range(self.workers)]
-
-    def _set_weights(model):
-        session = backend.get_session()
-        for layer in model.layers: 
-            if hasattr(layer, 'kernel_initializer'):
-                layer.kernel.initializer.run(session=session)
+        pass
+        # [worker.mutate() for worker in range(self.workers)]
+        
 
 if __name__ == '__main__':
     nn = keras.models.Sequential()
