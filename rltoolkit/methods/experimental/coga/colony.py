@@ -55,9 +55,13 @@ class Colony:
         # seeds = random.shuffle(seed)
         
         for i, weight1, weight2 in zip(range(len(new_weights)), weights1, weights2):
-            seeds = random.choices(range(new_weights[i]), k=random.choice(range(new_weights[i])))
-            [new_weights[i][seed] = weight1[seed] for seed in seeds]
-            [new_weights[i][seed] = weight1[seed] for seed in range(new_weights[i]) if seed not in seeds]
+            seeds = random.sample(range(len(new_weights[i])), random.choice(range(len(new_weights[i]))))
+            print(i, weight1, weight2, seeds)
+        for seed in seeds:
+            new_weights[i][seed] = weight1[seed]
+        for seed in range(len(new_weights[i])):
+            if seed not in seeds:
+                new_weights[i][seed] = weight2[seed]
                 
 
         new_colony = Colony(self.nn)
