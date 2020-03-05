@@ -73,8 +73,12 @@ class DQL:
           f'Time: {t}'
         print(results)
       
+      params = {
+        'rewards': rewards,
+      }
       for callback in callbacks:
-        callback.run(self, rewards)
+        callback.run(self, params)
+
       self.epsilon = max(self.epsilon*self.epsilon_decay, self.min_epsilon)
     
     return nn

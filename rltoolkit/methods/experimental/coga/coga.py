@@ -6,11 +6,12 @@ from worker import Worker
 class COGA:
 
   def __init__(self, nn, num_colonies=50, num_workers=75, alpha=0.01):
-    #Assert num_workers >= num_colonies
+    #Assert num_workers >= num_colonies and >=0 and an Int
     self.pop_size = num_colonies
     self.colonies = [Colony(nn) for _ in range(num_colonies)]
     self.workers  = [Worker(nn, alpha) for _ in range(num_workers)]
     self.pyramid  =  self._create_pyramid()
+    self.nn = self.colonies[0].nn
 
   def train(self, env, generations, elites=None, 
             sharpness=1, goal=None, patience=25, 
@@ -103,9 +104,14 @@ class COGA:
 
         self._assign_workers()
       
+      self.nn = self.colonies[ranked[0][0]].nn
       if callbacks:
-        for cb in callbacks:
-          cb.run(self,[ranked[i][1] for i in range(self.pop_size)])
+        params = {
+          'rewards':     [score[1] for score in ranked], #res
+          'validations': [score[2] for score in ranked], #val
+        }
+        for callback in callbacks:
+          callback.run(self,params)
 
       if goal_met:
         break
