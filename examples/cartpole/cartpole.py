@@ -15,8 +15,8 @@ except:
 
 #Build network
 model = Sequential()
-model.add(Dense(4, activation='relu', input_shape=env.observation_space.shape))
-model.add(Dense(32, activation='relu'))
+model.add(Dense(16, activation='relu', input_shape=env.observation_space.shape))
+model.add(Dense(64, activation='relu'))
 model.add(Dense(2, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
@@ -30,7 +30,7 @@ graph = Graph()
 #Make a checkpoint to save best model during training
 ckpt = Checkpoint('cartpole.h5')
 #Train neural network for 50 episodes
-method.train(model, env, 100, epsilon_decay=.9, callbacks=[ckpt, graph])
+nn = method.train(model, env, 50, epsilon_decay=.9, callbacks=[ckpt, graph])
 
 #Save and show rewards
 graph.show()
