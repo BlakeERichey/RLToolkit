@@ -1,4 +1,8 @@
+import numpy as np
+import random
 import keras
+from keras.layers import Dense
+from keras import backend
 
 
 class Colony:
@@ -8,35 +12,78 @@ class Colony:
         self.weights = nn.get_weights()
         self.workers = list()
 
-    def fitness(self):
-        model = keras.models.clone_model(self.nn)
-        best_worker = None
-        for worker in self.workers:
-            model.set_weights(model.get_weights())
-            # set original weights
-            # collect results
-            # validation results
-            best_worker = worker
-
-        #return best_worker.fitness()
-        raise Exception('StillWorkingOnThis')
-
-    def breed(self, colony2):
-        # Take in two colonies and splice them together
-        
-        new_colony = None
-        
-        #return new_colony
-        raise Exception('StillWorkingOnThis')
-
     def set_workers(self, worker):
         self.workers.append(worker)
 
+    def fitness(self, env, sharpness=1, validate=False):
+        if self.worker == []:
+            print('Colony has no worker.')
+            return None
+        
+        model = keras.models.clone_model(self.nn)
+        # _set_weights(model)
+        results = list()
+        best_worker = None
+        
+        for worker in self.workers:
+            result, v_result = results.append(worker.fitness(env, self.model, sharpness, validate))
+
+            if best_worker is None:
+                best_worker = worker
+                best_worker_result = result
+                best_worker_v_result = v_result
+                continue
+
+            if result > best_worker_result:
+                best_worker = worker
+                best_worker_result = result
+                best_worker_v_result = v_result
+        
+        return best_worker.fitness()
+
+    def breed(self, colony2):
+        weights1 = self.weights[0]
+        weights2 = colony2.weights[0]
+
+        if weights1.shape != weight2.shape:
+            print('Not same shape.')
+            return None
+
+        new_weights = np.zeros_like(weights1)
+
+        # seeds = range(1, len(new_weights)+1)
+        # seeds = random.shuffle(seed)
+        
+        for i, weight1, weight2 in zip(range(len(new_weights)), weights1, weights2):
+            seeds = random.choices(range(new_weights[i]), k=random.choice(range(new_weights[i])))
+            [new_weights[i][seed] = weight1[seed] for seed in seeds]
+            [new_weights[i][seed] = weight1[seed] for seed in range(new_weights[i]) if seed not in seeds]
+                
+
+        new_colony = Colony(self.nn)
+        new_colony.weights = self.weights
+        new_colony.workers = self.workers
+        new_colony.weights[0] = new_weights
+
+        return new_colony
+
     def mutate(self):
-        pass
+        [worker.mutate() for worker in range(self.workers)]
+
+    def _set_weights(model):
+        session = backend.get_session()
+        for layer in model.layers: 
+            if hasattr(layer, 'kernel_initializer'):
+                layer.kernel.initializer.run(session=session)
 
 if __name__ == '__main__':
     nn = keras.models.Sequential()
-    colony = Colony(nn)
-    colony.fitness()
+    nn.get_weights()
+    
+    model1 = keras.models.Sequential()
+    model1.add(Dense(12, input_dim=3, activation='relu'))
 
+    print(model1.get_weights())
+    print()
+    print(len(model1.get_weights()))
+    print()
