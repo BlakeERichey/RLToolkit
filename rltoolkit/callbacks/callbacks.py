@@ -79,3 +79,47 @@ class Graph:
     self._plot(version, loc)
     plt.savefig(filename)
     plt.close()
+
+class Checkpoint:
+  """
+    Model utility that saves the best model during episode runs
+  """
+
+  def __init__(self,filename,save_weights_only=False):
+    """
+      # Arguments
+        filename: target filename to save model file to
+        save_weights_only: If set to False, saves model architecture and weights.
+          if True, saves only weights.
+    """
+    self.filename = filename
+    self.max_reward = None
+    self.best_model = None
+    self.save_weights_only = save_weights_only
+
+  def run(self,obj,rewards):
+    """
+      Determines if the best model stored has been improved.
+      If so, saves the new best model. 
+
+      # Arguments
+        obj: A RL Method. Used to acquire methods network instance variable.
+        rewards: list of rewards obtained during an episode.
+    """
+    updated = False #save again?
+    if self.max_reward is None:
+      updated = True
+      self.max_reward = sum(rewards)
+      self.best_model = obj.nn
+    else:
+      reward = sum(rewards)
+      if reward >= self.max_reward:
+        updated = True
+        self.max_reward = reward
+        self.best_model = obj.nn
+    
+    if updated:
+      if self.save_weights_only:
+        self.best_model.save_weights(self.filename)
+      else:
+        self.best_model.save(self.filename)

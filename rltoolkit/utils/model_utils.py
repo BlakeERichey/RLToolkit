@@ -44,46 +44,48 @@ class ReplayBuffer:
     batch_size = min(self.size, batch_size)
     return random.sample(self.memory, batch_size)
 
-class Checkpoint:
+def test_network(nn, env, episodes=1, render=False, verbose=0):
   """
-    Model utility that saves the best model during episode runs
+    Tests a Keras neural network by running it through an environment
+
+    # Arguments
+    nn: Keras nueral network.
+    env: Gym environment.
+    episodes: How many episodes to run through gym environment.
+    render: Pass True to render at each step.
+    verbose: Int. Reports results of training after this many episodes. 
   """
-
-  def __init__(self,filename,save_weights_only=False):
-    """
-      # Arguments
-        filename: target filename to save model file to
-        save_weights_only: If set to False, saves model architecture and weights.
-          if True, saves only weights.
-    """
-    self.filename = filename
-    self.max_reward = None
-    self.best_model = None
-    self.save_weights_only = save_weights_only
-
-  def run(self,obj,rewards):
-    """
-      Determines if the best model stored has been improved.
-      If so, saves the new best model. 
-
-      # Arguments
-        obj: A RL Method. Used to acquire methods network instance variable.
-        rewards: list of rewards obtained during an episode.
-    """
-    updated = False #save again?
-    if self.max_reward is None:
-      updated = True
-      self.max_reward = sum(rewards)
-      self.best_model = obj.nn
-    else:
-      reward = sum(rewards)
-      if reward >= self.max_reward:
-        updated = True
-        self.max_reward = reward
-        self.best_model = obj.nn
-    
-    if updated:
-      if self.save_weights_only:
-        self.best_model.save_weights(self.filename)
+  discrete = hasattr(env.action_space, 'n') #environment is discrete
+  
+  total_rewards = []
+  for i in range(episodes):
+    done = False
+    rewards = []
+    envstate = env.reset()
+    while not done:
+      #determine action
+      qvals = nn.predict(np.expand_dims(envstate, axis=0))[0]
+      if discrete:
+        action = np.argmax(qvals)
       else:
-        self.best_model.save(self.filename)
+        action = qvals
+
+      #take action
+      envstate, reward, done, info = env.step(action)
+      rewards.append(reward)
+
+      if render:
+        env.render()
+    
+    total_rewards.append(sum(rewards))
+
+    if verbose and i % verbose == 0:
+      results = f'Episode: {i+1}/{episodes} | ' + \
+        f'Reward: {sum(rewards):.4f}'
+      print(results)
+  
+  if render:
+    env.close()
+
+  result = round(sum(total_rewards)/len(total_rewards), 5)
+  return result
