@@ -54,7 +54,7 @@ class Colony:
         
         for i, weight1, weight2 in zip(range(len(new_weights)), weights1, weights2):
             seeds = random.sample(range(len(new_weights[i])), random.choice(range(len(new_weights[i]))))
-            print(i, weight1, weight2, seeds)
+            # print(i, weight1, weight2, seeds)
         for seed in seeds:
             new_weights[i][seed] = weight1[seed]
         for seed in range(len(new_weights[i])):
