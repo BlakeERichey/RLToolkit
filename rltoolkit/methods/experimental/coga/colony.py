@@ -12,10 +12,10 @@ class Colony:
         self.workers = list()
 
     def fitness(self, env, sharpness=1, validate=False):
-        assert self.workers != [], 'Colony has not been set workers'
+        assert len(self.workers) > 1, 'Colony has to have at least 2 workers'
         
         model = keras.models.clone_model(self.nn)
-        results = list()
+        model = model.set_weights(self.weights)
 
         result, v_result = self.workers[0].fitness(env, model, sharpness, validate)
         best_worker_result = result
@@ -28,7 +28,7 @@ class Colony:
                 best_worker_result = result
                 best_worker_v_result = v_result       
         
-        return best_worker_result, best_woker_v_result
+        return best_worker_result, best_worker_v_result
 
     def breed(self, colony2):
         #Uncomment print statements to see how this function works
@@ -40,7 +40,8 @@ class Colony:
 
         for i, layer1, layer2 in zip(range(len(new_weights)), self.weights, colony2.weights):
             if new_weights[i].ndim == 1:
-                # This method is potentially dangerous since I'm not sure if layer can be other then 2 dimensional and bias can be other than 1 dimensional
+                # This method is potentially dangerous since I'm not sure if layer can be other then 2 dimensional
+                # and bias can be other than 1 dimensional
                 # Bias is always set to 0
                 continue
             for j, weight1, weight2 in zip(range(len(new_weights[i])), layer1, layer2):
@@ -58,42 +59,33 @@ class Colony:
                 '''
                 #print()
                 for seed in seeds:
-                    new_weights[i][j][seed] = self._truncate(weight1[seed], 3)
+                    new_weights[i][j][seed] = weight1[seed]
                 for seed in range(len(new_weights[i][j])):
                     if seed not in seeds:
-                        new_weights[i][j][seed] = self._truncate(weight2[seed], 3)
+                        new_weights[i][j][seed] = weight2[seed]
+
+            new_weights[i] = np.around(new_weights[i].astype(np.float64), 3)
             #print(new_weights[i])
             #print()
 
-        new_colony = Colony(self.nn)
-        new_colony.weights = new_weights
-        new_colony.workers = self.workers
-        #I think new colony should have no workers... tell me what to do
+        model = keras.models.clone_model(self.nn)
+        model.set_weights(new_weights)
         
-        return new_colony
+        return Colony(model)
 
     def mutate(self):
         pass
         # [worker.mutate() for worker in range(self.workers)]
 
-    def _truncate(self, f, n):
-        s = '{}'.format(f)
-        if 'e' in s or 'E' in s:
-            return '{0:.{1}f}'.format(f, n)
-        i, p, d = s.partition('.')
-        return float('.'.join([i, (d+'0'*n)[:n]]))
-            
-
-if __name__ == '__main__':
-    
+def test_breed():
     '''
     Run this code to see how the breeding function works
     '''
-    
+
     nn1 = keras.models.Sequential()
     nn1.add(Dense(12, input_dim=3, activation='relu'))
     nn1.add(Dense(4, input_dim=3, kernel_initializer='zero', activation='relu'))
-    
+
     nn2 = keras.models.Sequential()
     nn2.add(Dense(12, input_dim=3, activation='relu'))
     nn2.add(Dense(4, input_dim=3, kernel_initializer='one', activation='relu'))
@@ -108,24 +100,24 @@ if __name__ == '__main__':
     print(colony2.weights)
     print()
     '''
-    
+
     print('Colony1: ')
     for i in range(0, len(colony1.weights), 2):
         print('layer:')
         print(colony1.weights[i])
         print('bias:')
-        print(colony1.weights[i+1])
+        print(colony1.weights[i + 1])
     print()
     print('Colony2: ')
     for i in range(0, len(colony2.weights), 2):
         print('weights:')
         print(colony2.weights[i])
         print('bias:')
-        print(colony2.weights[i+1])
+        print(colony2.weights[i + 1])
     print()
 
     new_colony = colony1.breed(colony2)
-    
+
     '''
     #Raw weights output
     print(new_colony.weights)
@@ -136,7 +128,28 @@ if __name__ == '__main__':
         print('layer:')
         print(new_colony.weights[i])
         print('bias:')
-        print(new_colony.weights[i+1])
+        print(new_colony.weights[i + 1])
     print()
 
-    
+def test_time():
+    import time as t
+
+    nn1 = keras.models.Sequential()
+    nn1.add(Dense(12, input_dim=3, activation='relu'))
+    nn1.add(Dense(4, input_dim=3, kernel_initializer='zero', activation='relu'))
+
+    colony1 = Colony(nn1)
+
+    start_time = t.time()
+    print(nn1.get_weights())
+    print("%s seconds" % (t.time() - start_time))
+    print()
+
+    start_time = t.time()
+    print(colony1.weights)
+    print("%s seconds" % (t.time() - start_time))
+    print()
+
+if __name__ == '__main__':
+    #test_breed()
+    test_time()
