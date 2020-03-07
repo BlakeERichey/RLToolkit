@@ -31,7 +31,7 @@ class Colony:
         return best_worker_result, best_woker_v_result
 
     def breed(self, colony2):
-        #Uncommnet print statements to see how this function works
+        #Uncomment print statements to see how this function works
         new_weights = list()
         
         for layer1, layer2 in zip(self.weights, colony2.weights):
@@ -67,7 +67,8 @@ class Colony:
         new_colony = Colony(self.nn)
         new_colony.weights = new_weights
         new_colony.workers = self.workers
-
+        #I think new colony should have no workers... tell me what to do
+        
         return new_colony
 
     def mutate(self):
