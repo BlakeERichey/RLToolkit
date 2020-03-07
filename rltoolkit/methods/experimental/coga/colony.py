@@ -40,6 +40,7 @@ class Colony:
 
         for i, layer1, layer2 in zip(range(len(new_weights)), self.weights, colony2.weights):
             if new_weights[i].ndim == 1:
+                # This method is potentially dangerous since I'm not sure if layer can be other then 2 dimensional and bias can be other than 1 dimensional
                 # Bias is always set to 0
                 continue
             for j, weight1, weight2 in zip(range(len(new_weights[i])), layer1, layer2):
