@@ -3,6 +3,8 @@ import numpy as np
 from keras.models import clone_model, Sequential
 from keras.layers import Dense
 
+from rltoolkit.utils import test_network
+
 class Worker:
 
   '''
@@ -33,54 +35,11 @@ class Worker:
 
     '''
 
-    self.apply_mask(nn)
-
-    rewards = []
-    validation_rewards = []
-    reward = 0.0
-    validate_reward = 0.0
-    steps = 0
-    done = False
-    envstate = env.reset()
-
-    while not done:
-
-      discrete = hasattr(env.action_space, 'n')
-      qvals = nn.predict(np.expand_dims(envstate, axis=0))[0]
-      if discrete:
-        action = np.argmax(qvals)
-      else:
-        action = qvals
-
-      _, step_reward, done, _ = env.step(action)
-
-      reward += step_reward
-      steps += 1
-
-      if reward > max(rewards):
-        rewards.append(reward)
-
-
-
     if validate:
-      steps = 0
-      done = False
-      env.reset()
-      while not done:
+      validate = test_network(nn=nn, env=env, episodes=sharpness, render=render)
+      return test_network(nn=nn, env=env, episodes=sharpness), validate
 
-        action = np.argmax(env.action_space.sample()) if hasattr(env.action_space, 'n') else env.action_space
-        _, step_reward, done, _ = env.step(action)
-
-        validate_reward += step_reward
-        steps += 1
-
-        if validate_reward > max(validation_rewards):
-          validation_rewards.append(validate_reward)
-
-      return sum(rewards) / len(rewards), sum(validation_rewards) / len(validation_rewards)
-
-    print(f"Rewards Avg: {sum(rewards)/len(rewards)}")
-    return sum(rewards)/len(rewards), validate_reward
+    return test_network(nn=nn, env=env, episodes=sharpness, render=render)
 
 
   def gen_mask(self,nn):
@@ -94,16 +53,7 @@ class Worker:
 
     self.truncate_weights(weights)
 
-    for i, w in enumerate(weights):
-      weights[i] = np.around(w.astype(np.float64), 3)
-
-
     return weights
-
-
-
-
-
 
 
   def apply_mask(self, nn):
