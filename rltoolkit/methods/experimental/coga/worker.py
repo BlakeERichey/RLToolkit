@@ -77,26 +77,3 @@ class Worker:
       weights[i] = np.around(w.astype(np.float64), 3)
 
 
-
-if __name__ == '__main__':
-  import gym
-  import keras
-  from keras.models import Sequential, load_model
-  from keras.layers import Dense
-  from keras.optimizers import Adam
-
-  env = gym.make('CartPole-v0')
-
-  #Build network
-  nn = Sequential()
-  nn.add(Dense(4, activation='relu', input_shape=env.observation_space.shape))
-  nn.add(Dense(32, activation='relu'))
-  nn.add(Dense(2, activation='linear'))
-  nn.compile(Adam(0.001), loss='mse')
-  nn.summary()
-
-  #create worker here
-
-  w1 = Worker(nn, env)
-
-  w1.fitness(nn, env)
