@@ -35,11 +35,24 @@ class Worker:
 
     '''
 
-    if validate:
-      validate = test_network(nn=nn, env=env, episodes=sharpness, render=render)
-      return test_network(nn=nn, env=env, episodes=sharpness), validate
+    reward = 0.0
+    validate_reward = 0.0
+    self.apply_mask(nn)
 
-    return test_network(nn=nn, env=env, episodes=sharpness, render=render)
+    for _ in range(sharpness):
+      reward += test_network(nn=nn, env=env, render=render)
+
+    reward = reward / sharpness
+    return reward
+
+    if validate:
+
+      for _ in range(sharpness):
+        validate_reward += test_network(nn=nn, env=env, render=render)
+      validate_reward = validate_reward/sharpness
+
+      return reward, validate_reward
+
 
 
   def gen_mask(self,nn):
