@@ -150,6 +150,6 @@ def test_time():
     print("%s seconds" % (t.time() - start_time))
     print()
 
-if __name__ == '__main__':
-    #test_breed()
-    test_time()
+# if __name__ == '__main__':
+    # test_breed()
+    # test_time()
