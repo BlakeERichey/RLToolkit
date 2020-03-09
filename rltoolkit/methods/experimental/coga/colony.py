@@ -1,34 +1,41 @@
-import numpy as np
-import random
 import keras
+import random
+import numpy as np
 from keras.layers import Dense
+from collections import namedtuple
+from keras.models import clone_model
 
 
 class Colony:
 
     def __init__(self, nn):
-        self.nn = nn
-        self.weights = nn.get_weights()
         self.workers = list()
+        self.best_worker = None
+        self.nn = clone_model(nn)
+        self.weights = self.nn.get_weights()
 
-    def fitness(self, env, sharpness=1, validate=False):
-        assert len(self.workers) > 1, 'Colony has to have at least 2 workers'
+    def fitness(self, env=None, sharpness=1, validate=False):
+        assert len(self.workers), 'Colony must have at least 1 worker'
         
-        model = keras.models.clone_model(self.nn)
-        model = model.set_weights(self.weights)
+        model = self.nn
+        model.set_weights(self.weights)
 
-        result, v_result = self.workers[0].fitness(env, model, sharpness, validate)
-        best_worker_result = result
-        best_worker_v_result = v_result
+        Result = namedtuple('result', 'id reward v_reward')
+        reward, v_reward = self.workers[0].fitness(model, env, sharpness, validate)
+        results = [Result(0, reward, v_reward)]
 
-        for worker in self.workers[1:]:
-            result, v_result = worker.fitness(env, model, sharpness, validate)
-
-            if result > best_worker_result:
-                best_worker_result = result
-                best_worker_v_result = v_result       
+        if len(self.workers) > 1:
+          i = 0
+          for worker in self.workers[1:]:
+            model.set_weights(self.weights)
+            reward, v_reward = worker.fitness(model, env, sharpness, validate)
+            results.append(Result(i, reward, v_reward))   
+            i+=1
         
-        return best_worker_result, best_worker_v_result
+        results.sort(key= lambda res: (res.reward, res.v_reward), reverse=True)
+        self.best_worker = results[0].id
+
+        return results[0].reward, results[0].v_reward
 
     def breed(self, colony2):
         #Uncomment print statements to see how this function works
@@ -68,14 +75,15 @@ class Colony:
             #print(new_weights[i])
             #print()
 
-        model = keras.models.clone_model(self.nn)
-        model.set_weights(new_weights)
+        colony = Colony(self.nn)
+        colony.nn.set_weights(new_weights)
         
-        return Colony(model)
+        return colony
 
     def mutate(self):
-        pass
-        # [worker.mutate() for worker in range(self.workers)]
+      # self.workers[self.best_worker]._apply_mask(self.nn)
+      pass
+      # [worker.mutate() for worker in range(self.workers)]
 
 def test_breed():
     '''

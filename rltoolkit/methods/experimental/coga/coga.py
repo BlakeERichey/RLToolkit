@@ -1,18 +1,19 @@
 import random
 import numpy as np
-from colony import Colony
-from worker import Worker
+from .colony import Colony
+from .worker import Worker
 from collections import namedtuple
 
 class COGA:
 
   def __init__(self, nn, num_colonies=50, num_workers=75, alpha=0.01):
     #Assert num_workers >= num_colonies and >=0 and an Int
+    self.nn       = None
     self.pop_size = num_colonies
     self.colonies = [Colony(nn) for _ in range(num_colonies)]
     self.workers  = [Worker(nn, alpha) for _ in range(num_workers)]
     self.pyramid  =  self._create_pyramid()
-    self.nn = self.colonies[0].nn
+    self._assign_workers()
 
   def train(self, env, generations, elites=None, 
             sharpness=1, goal=None, patience=25, 
@@ -42,7 +43,7 @@ class COGA:
       elites = int(0.25*self.pop_size)
 
     goal_met = False
-    Fitness = namedtuple('fitness', ['id', 'reward', 'v_reward'])
+    Fitness = namedtuple('fitness', 'id reward v_reward')
     for gen in range(generations):
       ranked = []
       for i, colony in enumerate(self.colonies):
@@ -51,9 +52,15 @@ class COGA:
           sharpness=sharpness, 
           validate=validate, 
         )
+        print(i, res, val)
         ranked.append(Fitness(i, res, val))
 
-      ranked = sorted(ranked, key=lambda fitness: (fitness.reward, fitness.v_reward), reverse=True)
+      ranked = sorted(
+        ranked, 
+        key=lambda fitness: (fitness.reward, fitness.v_reward), 
+        reverse=True
+      )
+
       print("Gen:", gen, "Ranked:", ranked, '\n')
       if goal:
         if not validate:
@@ -103,26 +110,36 @@ class COGA:
         
 
         #Logic for generating new workers goes here, currently not necessary
-
-        self._assign_workers()
       
-      self.nn = self.colonies[ranked[0].id].nn #WRONG, need best worker's network, not colony's
       if callbacks:
+        #get best network
+        best_colony = self.colonies[ranked[0].id]
+        best_worker = best_colony.workers[best_colony.best_worker]
+        self.nn = self.colonies[ranked[0].id].nn #WRONG, need best worker's network, not colony's
+        best_worker._apply_mask(self.nn)
+
         params = {
+          'coga':        True,
           'rewards':     [score.reward   for score in ranked], #res
           'validations': [score.v_reward for score in ranked], #val
         }
+        print('Params:', params)
         for callback in callbacks:
           callback.run(self, params)
 
       if goal_met:
         break
         
-    best_colony = ranked[0].id
-    colony = self.colonies[best_colony]
+      self._assign_workers() #done after callbacks to not lose best worker
+        
+    best_colony = self.colonies[ranked[0].id]
     if return_colony:
       return return_colony
-    return colony.nn  #WRONG, needs to be best worker's nn
+
+    best_worker = best_colony.workers[best_colony.best_worker]
+    self.nn = self.colonies[ranked[0].id].nn #WRONG, need best worker's network, not colony's
+    best_worker._apply_mask(self.nn)
+    return self.nn  #WRONG, needs to be best worker's nn
   
   def _selection(self, ranked, elites):
     """
@@ -141,10 +158,7 @@ class COGA:
       mating_pool.append(ranked[i])
     
     remaining = random.sample(ranked[elites:], len(ranked)-elites)
-    for i in remaining:
-      worker = ranked[i]
-      mating_pool.append(worker)
-
+    mating_pool = mating_pool+remaining
     return mating_pool
 
   def _create_pyramid(self,):
@@ -177,5 +191,5 @@ class COGA:
     assigned = 0
     for i, colony in enumerate(self.colonies):
       assigning = self.pyramid[i]
-      colony.workers = self.workers[assigned:assigning]
+      colony.workers = self.workers[assigned:assigned + assigning]
       assigned+=assigning

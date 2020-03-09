@@ -14,14 +14,20 @@ class Graph:
       'cumulative': [],
     }
   
-  def run(self,obj,rewards):
+  def run(self,obj,params):
     """
       Saves rewards to memory and stores for graphing later.
 
       # Arguments
         obj: A RL Method. Used to acquire methods network instance variable.
-        rewards: list of rewards obtained during an episode.
+        params: Dictionary that contains pertinent information for callbacks.
+          Typically contains list of rewards for an episode and validation rewards.
     """
+    rewards = params.get('rewards')
+
+    if not rewards:
+      raise ValueError('No `rewards` in Parameters for Graph callback', params)
+
     min_r = min(rewards)
     max_r = max(rewards)
     avg_r = sum(rewards)/len(rewards)
@@ -95,28 +101,57 @@ class Checkpoint:
     self.filename = filename
     self.max_reward = None
     self.best_model = None
+    self.max_v_reward = None
     self.save_weights_only = save_weights_only
 
-  def run(self,obj,rewards):
+  def run(self,obj,params):
     """
       Determines if the best model stored has been improved.
       If so, saves the new best model. 
 
       # Arguments
         obj: A RL Method. Used to acquire methods network instance variable.
-        rewards: list of rewards obtained during an episode.
+        params: Dictionary that contains pertinent information for callbacks.
+          Typically contains list of rewards for an episode and validation rewards.
     """
+    rewards = params.get('rewards')
+    if not rewards:
+      raise ValueError('No `rewards` in Parameters for Checkpoint callback', params)
+    validations = params.get('validations') #is permissible to not be included
+    coga = params.get('coga', False)
+
     updated = False #save again?
     if self.max_reward is None:
       updated = True
-      self.max_reward = sum(rewards)
+      if coga:
+        self.max_reward = max(rewards)
+      else:
+        self.max_reward = sum(rewards)
       self.best_model = obj.nn
+      if validations is not None:
+        if coga:
+          self.max_v_reward = max(validations)
+        else:
+          self.max_v_reward = sum(validations)
     else:
-      reward = sum(rewards)
+      if coga:
+        reward = max(rewards)
+      else:
+        reward = sum(rewards)
       if reward >= self.max_reward:
-        updated = True
-        self.max_reward = reward
-        self.best_model = obj.nn
+        if validations is not None:
+          if coga:
+            v_reward = max(validations)
+          else:
+            v_reward = sum(validations)
+          if v_reward >= self.max_v_reward:
+            updated = True
+            self.max_reward = reward
+            self.best_model = obj.nn
+        else:  
+          updated = True
+          self.max_reward = reward
+          self.best_model = obj.nn
     
     if updated:
       if self.save_weights_only:
