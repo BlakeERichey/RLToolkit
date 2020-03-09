@@ -89,3 +89,20 @@ def test_network(nn, env, episodes=1, render=False, verbose=0):
 
   result = round(sum(total_rewards)/len(total_rewards), 5)
   return result
+
+def truncate_weights(weights, n_decimals=3, alpha=1):
+    """
+        Truncates list of weights for a keras network in place
+
+        # Arguments:
+        weights: list of numpy arrays corresponding to a Keras networks weights.
+        n_decimals: number of decimals to round to.
+        alpha: small number to multiply each weight by. 
+          Set to 1 to keep weights, and simply truncate
+        
+        Use:
+        model.set_weights(truncate_weights(model.get_weights()))
+    """
+    for i, w in enumerate(weights):
+      weights[i]=alpha*np.around(w.astype(np.float64), n_decimals)
+    return weights
