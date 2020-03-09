@@ -1,95 +1,81 @@
 import math, random
 import numpy as np
-from keras.models import clone_model, Sequential
 from keras.layers import Dense
-
-from rltoolkit.utils import test_network
+from keras.models import clone_model, Sequential
+from rltoolkit.utils import truncate_weights, test_network
 
 class Worker:
 
-  '''
-    Worker is a abstract class that implements the testing of an individual
-    in an evolutionary strategy
-  '''
+  """
+    A worker is an individual that applies mutations on a Colony and serves
+    in determining the overall quality of the Colony
+  """
 
   def __init__(self, nn, alpha=0.01):
+    """
+      Initializes a worker.
 
+      # Arguments
+      nn: A Keras neural network
+      alpha: A small number to multiply against newly generated weights to act
+        as a mask to apply to mutate Colony networks.
+    """
     self.alpha = alpha
-    # Not sure what to do with the genes
-    # self.genes = np.random.uniform(0.0, 1.0, size=4)
-    self.mask = self.gen_mask(nn)
-
-
+    self.mask = self._gen_mask(nn)
 
   def fitness(self, nn, env, sharpness=1, validate=False, render=False):
-    '''
-      should return results from non validation test and validation run
+    """
+      Test a worker by applying its mask, then runs resultant worker through 
+      the environment.
 
-      does not require use of validation run
-
-      returns (results, validation results)
-
-      take nn and apply the mask generated below (add to each layer at the same time)
-
-      If validate is False return 0.0
-
-    '''
-
-    reward = 0.0
-    validate_reward = 0.0
-    self.apply_mask(nn)
-
-    for _ in range(sharpness):
-      reward += test_network(nn=nn, env=env, render=render)
-
-    reward = reward / sharpness
-    return reward
-
+      # Arguements
+      nn: A keras neural network.
+      env: A gym environment.
+      sharpness: How many episodes to run of the gym environment.
+      render: Pass True to render the environment at each step.
+    """
+    self._apply_mask(nn)
+    reward = test_network(
+      nn,
+      env,
+      verbose=0,
+      render=render,
+      episodes=sharpness,
+    )
+    
+    #validation reward defaults to 0
+    v_reward = 0
     if validate:
+      v_reward = test_network(
+        nn,
+        env,
+        verbose=0,
+        render=render,
+        episodes=sharpness,
+      )
+  
+  
+    return reward, v_reward
 
-      for _ in range(sharpness):
-        validate_reward += test_network(nn=nn, env=env, render=render)
-      validate_reward = validate_reward/sharpness
 
-      return reward, validate_reward
-
-
-
-  def gen_mask(self,nn):
-    '''
+  def _gen_mask(self, nn,):
+    """
       Creates a small mask to apply (add) to a a workers
       genes when performing mutations
-      Multiply each weight by alpha
-    '''
+    """
+    return truncate_weights(nn.get_weights(), alpha=self.alpha, n_decimals=3)
 
+
+  def _apply_mask(self, nn):
+    """
+      Applies works weights to keras network. Used as a mutation strategy to 
+      update a network prior to testing in an environment.
+    """
+    
+    #Apply mask in place
     weights = nn.get_weights()
-
-    self.truncate_weights(weights)
-
-    return weights
-
-
-  def apply_mask(self, nn):
-
-    weights = nn.get_weights()
-
-    self.truncate_weights(weights)
-
     for i, layer in enumerate(weights):
       layer += self.mask[i]
 
+    #set new weights
     nn.set_weights(weights)
-
-    return None
-
-  def truncate_weights(self, weights):
-    """
-        Truncates list of weights for a keras network in place
-    """
-    for i, w in enumerate(weights):
-      weights[i] = np.around(w.astype(np.float64), 3)
-
-
-
-
-
