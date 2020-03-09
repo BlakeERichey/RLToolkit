@@ -63,7 +63,7 @@ class Worker:
     genes when performing mutations
   """
 
-  return truncate_weights(nn.get_weights(), alpha=self.alpha, n_decimals=3)
+    return truncate_weights(nn.get_weights(), alpha=self.alpha, n_decimals=3)
 
 
   def apply_mask(self, nn):
@@ -95,6 +95,7 @@ class Worker:
     """
     for i, w in enumerate(weights):
       weights[i]=alpha*np.around(w.astype(np.float64), n_decimals)
+  
     return weights
 
 
