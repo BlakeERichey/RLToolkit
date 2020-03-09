@@ -111,6 +111,7 @@ class COGA:
 
         #Logic for generating new workers goes here, currently not necessary
       
+      self.nn = self.colonies[ranked[0].id].nn #WRONG, need best worker's network, not colony's
       if callbacks:
         #get best network
         best_colony = self.colonies[ranked[0].id]
