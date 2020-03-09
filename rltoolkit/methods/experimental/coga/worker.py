@@ -43,7 +43,7 @@ class Worker:
       reward += test_network(nn=nn, env=env, render=render)
 
     reward = reward / sharpness
-    return reward
+    
 
     if validate:
 
@@ -52,7 +52,9 @@ class Worker:
       validate_reward = validate_reward/sharpness
 
       return reward, validate_reward
-
+  
+  
+    return reward
 
 
   def gen_mask(self,nn):
