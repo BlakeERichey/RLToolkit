@@ -57,18 +57,13 @@ class Worker:
     return reward
 
 
-  def gen_mask(self,nn):
-    '''
-      Creates a small mask to apply (add) to a a workers
-      genes when performing mutations
-      Multiply each weight by alpha
-    '''
+  def _gen_mask(self, nn,):
+  """
+    Creates a small mask to apply (add) to a a workers
+    genes when performing mutations
+  """
 
-    weights = nn.get_weights()
-
-    self.truncate_weights(weights)
-
-    return weights
+  return truncate_weights(nn.get_weights(), alpha=self.alpha, n_decimals=3)
 
 
   def apply_mask(self, nn):
@@ -84,11 +79,22 @@ class Worker:
 
     return None
 
-  def truncate_weights(self, weights):
+  
+  def truncate_weights(weights, n_decimals=3, alpha=1,):
     """
         Truncates list of weights for a keras network in place
+
+        # Arguments:
+        weights: list of numpy arrays corresponding to a Keras networks weights.
+        n_decimals: number of decimals to round to.
+        alpha: small number to multiply each weight by. 
+          Set to 1 to keep weights, and simply truncate
+        
+        Use:
+        model.set_weights(truncate_weights(model.get_weights()))
     """
     for i, w in enumerate(weights):
-      weights[i] = np.around(w.astype(np.float64), 3)
+      weights[i]=alpha*np.around(w.astype(np.float64), n_decimals)
+    return weights
 
 
