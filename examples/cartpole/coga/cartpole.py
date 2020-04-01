@@ -49,7 +49,7 @@ def coga(model):
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint('cartpole.h5')
   #Train neural network for 50 episodes
-  nn = method.train(env, 10, 1, patience=2, validate=True, verbose=1, callbacks=[ckpt, graph])
+  nn = method.train(env, 10, 1, patience=2, validate=True, verbose=1, callbacks=[])
 
   #Save and show rewards
   graph.show()

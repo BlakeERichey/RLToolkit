@@ -17,7 +17,6 @@ class Graph:
   def run(self,obj,params):
     """
       Saves rewards to memory and stores for graphing later.
-
       # Arguments
         obj: A RL Method. Used to acquire methods network instance variable.
         params: Dictionary that contains pertinent information for callbacks.
@@ -43,7 +42,6 @@ class Graph:
     """
       Graphs rewards per epoch on matplotlib pyplot and 
       shows the resulting graph.
-
       # Arguments
         version: array with options of ['cumulative', 'min', 'max', 'avg']. 
           Determines which stats of recorded rewards are plotted. 
@@ -108,7 +106,6 @@ class Checkpoint:
     """
       Determines if the best model stored has been improved.
       If so, saves the new best model. 
-
       # Arguments
         obj: A RL Method. Used to acquire methods network instance variable.
         params: Dictionary that contains pertinent information for callbacks.
