@@ -24,6 +24,7 @@ model.summary()
 method = DQL(rb_size=500, replay_batch_size=128)
 ckpt = Checkpoint('mountaincar.h5')
 
+"""
 nn = method.train(model, 
                   env,
                   10000,
@@ -33,8 +34,11 @@ nn = method.train(model,
                   batch_size=64,
                   callbacks=[ckpt],
                 )
+"""
 
 model.load_weights('mountain_best.h5')
 
-avg = test_network(model, env, 10, render=True, verbose=1)
+episodes = 10
+
+avg = test_network(model, env, episodes, render=True, verbose=1)
 print(f'Average after {episodes} episodes:', avg)
