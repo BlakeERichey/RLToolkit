@@ -75,6 +75,7 @@ class DQL:
       
       params = {
         'rewards': rewards,
+        'best_total': sum(rewards) #precalculated sum of rewards
       }
       for callback in callbacks:
         callback.run(self, params)

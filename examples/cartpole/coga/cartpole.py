@@ -33,9 +33,8 @@ except:
 
 #Build network
 model = Sequential()
-model.add(Dense(16, activation='relu', input_shape=env.observation_space.shape))
-model.add(Dense(64, activation='relu'))
-model.add(Dense(2, activation='linear'))
+model.add(Dense(32, activation='relu', input_shape=env.observation_space.shape))
+model.add(Dense(env.action_space.n, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
 
@@ -49,17 +48,28 @@ def coga(model):
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint('cartpole.h5')
   #Train neural network for 50 episodes
-  nn = method.train(env, 10, 1, patience=2, validate=True, verbose=1, callbacks=[])
+  nn = method.train(env,
+                    goal=200,
+                    elites=4, 
+                    verbose=1,
+                    patience=3,
+                    validate=True,
+                    generations=25,
+                    callbacks=[graph], 
+                    sharpness=1,
+                  )
 
   #Save and show rewards
-  graph.show()
-  graph.save('cartpole.png')
+  version = ['min', 'max', 'avg']
+  graph.show(version=version)
+  graph.save('cartpole.png', version=version)
 
   #Load best saved model
-  model = load_model('cartpole.h5')
+  # model = load_model('cartpole.h5')
+  model = nn
 
   #Test models results for 5 episodes
-  avg = test_network(nn, env, episodes=5, render=True, verbose=1)
+  avg = test_network(model, env, episodes=5, render=True, verbose=1)
   # print('Average after 100 episodes:', avg)
 
 coga(model)

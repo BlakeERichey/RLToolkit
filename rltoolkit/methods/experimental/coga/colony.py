@@ -77,11 +77,13 @@ class Colony:
 
         colony = Colony(self.nn)
         colony.nn.set_weights(new_weights)
+        colony.weights = new_weights
         
         return colony
 
     def mutate(self):
-      # self.workers[self.best_worker]._apply_mask(self.nn)
+      self.workers[self.best_worker]._apply_mask(self.nn)
+      self.weights = self.nn.get_weights()
       pass
       # [worker.mutate() for worker in range(self.workers)]
 

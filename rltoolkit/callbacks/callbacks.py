@@ -10,7 +10,7 @@ class Graph:
       'min':        [],
       'max':        [],
       'epoch':      [],
-      'average':    [],
+      'avg':    [],
       'cumulative': [],
     }
   
@@ -36,7 +36,7 @@ class Graph:
     self.episode_rewards['cumulative'].append(sum(rewards))
     self.episode_rewards['min'].append(min_r)
     self.episode_rewards['max'].append(max_r)        
-    self.episode_rewards['average'].append(avg_r)
+    self.episode_rewards['avg'].append(avg_r)
   
   def show(self,version=['cumulative'],loc=4):
     """
@@ -111,46 +111,37 @@ class Checkpoint:
         params: Dictionary that contains pertinent information for callbacks.
           Typically contains list of rewards for an episode and validation rewards.
     """
-    rewards = params.get('rewards')
-    if not rewards:
-      raise ValueError('No `rewards` in Parameters for Checkpoint callback', params)
+    rewards     = params.get('rewards')
+    total       = params.get('best_total')
     validations = params.get('validations') #is permissible to not be included
-    coga = params.get('coga', False)
+    v_total     = params.get('best_total_validations')
+    
+    if not rewards or not total:
+      raise ValueError('`rewards` and `best_total` Parameters necessary for Checkpoint callback.run()', params)
+    if validations and not v_total:
+      raise ValueError('`best_total_validations` must be provided when measuring validations', params)
 
     updated = False #save again?
     if self.max_reward is None:
       updated = True
-      if coga:
-        self.max_reward = max(rewards)
-      else:
-        self.max_reward = sum(rewards)
-      self.best_model = obj.nn
+      reward = total
       if validations is not None:
-        if coga:
-          self.max_v_reward = max(validations)
-        else:
-          self.max_v_reward = sum(validations)
+        v_reward = v_total
     else:
-      if coga:
-        reward = max(rewards)
-      else:
-        reward = sum(rewards)
-      if reward >= self.max_reward:
-        if validations is not None:
-          if coga:
-            v_reward = max(validations)
-          else:
-            v_reward = sum(validations)
-          if v_reward >= self.max_v_reward:
+      reward = total
+      if validations is not None:
+        v_reward = v_total
+      if reward > self.max_reward:
+        updated = True
+      if reward == self.max_reward and v_reward > self.max_v_reward:
             updated = True
-            self.max_reward = reward
-            self.best_model = obj.nn
-        else:  
-          updated = True
-          self.max_reward = reward
-          self.best_model = obj.nn
     
     if updated:
+      self.max_reward = reward
+      self.best_model = obj.nn
+      if validations is not None:
+        self.max_v_reward = v_reward
+
       if self.save_weights_only:
         self.best_model.save_weights(self.filename)
       else:

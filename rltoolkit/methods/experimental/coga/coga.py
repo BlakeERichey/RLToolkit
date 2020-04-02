@@ -8,14 +8,14 @@ class COGA:
 
   def __init__(self, nn, num_colonies=50, num_workers=75, alpha=0.01):
     #Assert num_workers >= num_colonies and >=0 and an Int
-    self.nn       = None
+    self.nn       = nn
     self.pop_size = num_colonies
     self.colonies = [Colony(nn) for _ in range(num_colonies)]
     self.workers  = [Worker(nn, alpha) for _ in range(num_workers)]
     self.pyramid  =  self._create_pyramid()
     self._assign_workers()
 
-  def train(self, env, generations, elites=None, 
+  def train(self, env, generations=1, elites=None, 
             sharpness=1, goal=None, patience=25, 
             validate=False, verbose=1, return_colony=False, callbacks=[],):
     """
@@ -71,7 +71,7 @@ class COGA:
       #next gen
       if gen != generations - 1 and not(goal_met):
         
-        elite_ids = [ranked[i].id for i in range(elites)]
+        elite_ids = set([ranked[i].id for i in range(elites)])
         
         #How many colonies need to be remade?
         remake = 0
@@ -90,6 +90,8 @@ class COGA:
             parent2 = self.colonies[mating_pool[-i].id]
             new_colony = parent1.breed(parent2)
             new_colonies.append(new_colony)
+          else:
+            break
         
         #Replace bad colonies, update non elites
         remade = 0
@@ -111,18 +113,18 @@ class COGA:
 
         #Logic for generating new workers goes here, currently not necessary
       
-      self.nn = self.colonies[ranked[0].id].nn #WRONG, need best worker's network, not colony's
       if callbacks:
         #get best network
         best_colony = self.colonies[ranked[0].id]
         best_worker = best_colony.workers[best_colony.best_worker]
-        self.nn = self.colonies[ranked[0].id].nn #WRONG, need best worker's network, not colony's
+        self.nn.set_weights(best_colony.weights)
         best_worker._apply_mask(self.nn)
 
         params = {
-          'coga':        True,
-          'rewards':     [score.reward   for score in ranked], #res
-          'validations': [score.v_reward for score in ranked], #val
+          'best_total':              ranked[0].reward,
+          'best_total_validations':  ranked[0].v_reward,
+          'rewards':                 [score.reward   for score in ranked], #res
+          'validations':             [score.v_reward for score in ranked], #val
         }
         print('Params:', params)
         for callback in callbacks:
@@ -135,12 +137,12 @@ class COGA:
         
     best_colony = self.colonies[ranked[0].id]
     if return_colony:
-      return return_colony
+      return best_colony
 
     best_worker = best_colony.workers[best_colony.best_worker]
-    self.nn = self.colonies[ranked[0].id].nn #WRONG, need best worker's network, not colony's
+    self.nn.set_weights(best_colony.weights)
     best_worker._apply_mask(self.nn)
-    return self.nn  #WRONG, needs to be best worker's nn
+    return self.nn
   
   def _selection(self, ranked, elites):
     """
