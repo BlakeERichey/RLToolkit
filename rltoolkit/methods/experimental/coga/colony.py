@@ -7,35 +7,55 @@ from keras.models import clone_model
 
 
 class Colony:
+    """
+      A fundational entity in the COGA method. 
+      Maintains workers and settlement of new colonies.
+    """
 
     def __init__(self, nn):
-        self.workers = list()
-        self.best_worker = None
-        self.nn = clone_model(nn)
-        self.weights = self.nn.get_weights()
+      """
+        Creates a new Colony and assigns a network to it with 
+        an identical architecture but new weights.
+      """
+      self.workers = list()
+      self.best_worker = None
+      self.nn = clone_model(nn)
+      self.weights = self.nn.get_weights()
 
     def fitness(self, env=None, sharpness=1, validate=False):
-        assert len(self.workers), 'Colony must have at least 1 worker'
-        
-        model = self.nn
-        model.set_weights(self.weights)
+      """
+        Runs all of the colonys workers through an environment
+        and evaluates the quality of the colony as a whole. 
+        Based on its best performing worker.
 
-        Result = namedtuple('result', 'id reward v_reward')
-        reward, v_reward = self.workers[0].fitness(model, env, sharpness, validate)
-        results = [Result(0, reward, v_reward)]
+        # Arguements
+        env: a Gym environment
+        sharpness: how many episodes to run each worker through environment
+        validate: Runs a second iteration through environment with the same 
+          sharpness. Use if the environment is especially stochastic.
+      """
 
-        if len(self.workers) > 1:
-          i = 0
-          for worker in self.workers[1:]:
-            model.set_weights(self.weights)
-            reward, v_reward = worker.fitness(model, env, sharpness, validate)
-            results.append(Result(i, reward, v_reward))   
-            i+=1
-        
-        results.sort(key= lambda res: (res.reward, res.v_reward), reverse=True)
-        self.best_worker = results[0].id
+      assert len(self.workers), 'Colony must have at least 1 worker'
+      
+      model = self.nn
+      model.set_weights(self.weights)
 
-        return results[0].reward, results[0].v_reward
+      Result = namedtuple('result', 'id reward v_reward')
+      reward, v_reward = self.workers[0].fitness(model, env, sharpness, validate)
+      results = [Result(0, reward, v_reward)]
+
+      if len(self.workers) > 1:
+        i = 0
+        for worker in self.workers[1:]:
+          model.set_weights(self.weights)
+          reward, v_reward = worker.fitness(model, env, sharpness, validate)
+          results.append(Result(i, reward, v_reward))   
+          i+=1
+      
+      results.sort(key= lambda res: (res.reward, res.v_reward), reverse=True)
+      self.best_worker = results[0].id
+
+      return results[0].reward, results[0].v_reward
 
     def breed(self, colony2):
         #Uncomment print statements to see how this function works
@@ -82,10 +102,11 @@ class Colony:
         return colony
 
     def mutate(self):
+      """
+        Shifts a colony by relocating it to the best workers weights.
+      """
       self.workers[self.best_worker]._apply_mask(self.nn)
       self.weights = self.nn.get_weights()
-      pass
-      # [worker.mutate() for worker in range(self.workers)]
 
 def test_breed():
     '''

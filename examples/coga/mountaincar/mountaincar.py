@@ -71,7 +71,6 @@ def coga(model):
 
   #Load best saved model
   model = load_model('mc.h5')
-  # model = nn
 
   #Test models results for 5 episodes
   episodes = 5
