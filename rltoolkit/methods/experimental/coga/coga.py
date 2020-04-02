@@ -2,7 +2,9 @@ import random
 import numpy as np
 from .colony import Colony
 from .worker import Worker
+from datetime import datetime
 from collections import namedtuple
+from rltoolkit.utils import format_time
 
 class COGA:
 
@@ -44,7 +46,11 @@ class COGA:
 
     goal_met = False
     Fitness = namedtuple('fitness', 'id reward v_reward')
+    start_time = datetime.now()
+    print('Starting training:', start_time)
     for gen in range(generations):
+
+      #Evaluate all colonies
       ranked = []
       for i, colony in enumerate(self.colonies):
         res, val = colony.fitness(
@@ -52,7 +58,8 @@ class COGA:
           sharpness=sharpness, 
           validate=validate, 
         )
-        print(i, res, val)
+        if verbose == 'testing':
+          print(i, res, val)
         ranked.append(Fitness(i, res, val))
 
       ranked = sorted(
@@ -61,14 +68,29 @@ class COGA:
         reverse=True
       )
 
-      print("Gen:", gen, "Ranked:", ranked, '\n')
+      #Display Results
+      if isinstance(verbose, int) and verbose and gen % verbose == 0:
+        dt = datetime.now() - start_time
+        t = format_time(dt.total_seconds())
+
+        rewards = [score.reward   for score in ranked]
+        results = f'Gen: {gen+1}/{generations} | ' + \
+          f'Max: {max(rewards):.4f} | ' + \
+          f'Avg: {sum(rewards)/len(rewards):.4f} | ' + \
+          f'Min: {min(rewards):.4f} | ' + \
+          f'Time: {t}'
+        print(results)
+      
+      if verbose == 'testing':
+        print(f'Gen: {i+1}/{generations}\n {ranked} \n\n')
+
       if goal:
         if not validate:
           goal_met = ranked[0].reward>=goal
         else:
           goal_met = ranked[0].reward>=goal and ranked[0].v_reward>=goal
       
-      #next gen
+      #Get next generation of networks
       if gen != generations - 1 and not(goal_met):
         
         elite_ids = set([ranked[i].id for i in range(elites)])
@@ -114,7 +136,7 @@ class COGA:
         #Logic for generating new workers goes here, currently not necessary
       
       if callbacks:
-        #get best network
+        #get best network, set to self.nn
         best_colony = self.colonies[ranked[0].id]
         best_worker = best_colony.workers[best_colony.best_worker]
         self.nn.set_weights(best_colony.weights)
@@ -126,7 +148,6 @@ class COGA:
           'rewards':                 [score.reward   for score in ranked], #res
           'validations':             [score.v_reward for score in ranked], #val
         }
-        print('Params:', params)
         for callback in callbacks:
           callback.run(self, params)
 
