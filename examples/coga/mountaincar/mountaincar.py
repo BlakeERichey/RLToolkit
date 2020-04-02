@@ -15,43 +15,53 @@ except:
 
 #Build network
 model = Sequential()
-model.add(Dense(64, activation='relu', input_shape=env.observation_space.shape))
-model.add(Dense(64, activation='relu'))
+model.add(Dense(256, activation='relu', input_shape=env.observation_space.shape))
+model.add(Dense(256, activation='relu'))
+model.add(Dense(256, activation='relu'))
 model.add(Dense(env.action_space.n, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
 
+filename = 'mountaincar'
+
+#Load pretrained model
+try:
+  model = load_model(f'{filename}.h5')
+except:
+  pass
+
 #Initialize COGA Learning Method
 method = COGA(model, 
               num_colonies=20, 
-              num_workers=30,
-              #alpha=0.1,
+              num_workers=50,
+              alpha=0.2,
             )
 
 #Enable graphing of rewards
 graph = Graph()
 #Make a checkpoint to save best model during training
-ckpt = Checkpoint('mc.h5')
+ckpt = Checkpoint(f'{filename}.h5')
 
 #Train neural network for 25 generations
 nn = method.train(env,
                   goal=-110,
-                  elites=4, 
+                  elites=5,
                   verbose=1,
-                  patience=4,
+                  patience=10,
                   validate=True,
-                  generations=1000,
+                  generations=100,
                   callbacks=[graph, ckpt], 
-                  sharpness=5,
+                  sharpness=25,
                 )
 
 #Save and show rewards
 version = ['min', 'max', 'avg']
 graph.show(version=version)
-graph.save('mc.png', version=version)
+graph.save(f'{filename}.png', version=version)
+nn.save('nn.h5')
 
 #Load best saved model
-model = load_model('mc.h5')
+model = load_model(f'{filename}.h5')
 
 #Test models results for 5 episodes
 episodes = 5

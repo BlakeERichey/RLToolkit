@@ -108,6 +108,12 @@ class Colony:
       self.workers[self.best_worker]._apply_mask(self.nn)
       self.weights = self.nn.get_weights()
 
+    def set_network(self, network=None):
+      if self.nn is not None:
+        weights = network.get_weights()
+        self.nn.set_weights(weights)
+        self.weights = weights
+
 def test_breed():
     '''
     Run this code to see how the breeding function works

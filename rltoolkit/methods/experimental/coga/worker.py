@@ -18,7 +18,7 @@ class Worker:
       # Arguments
       nn: A Keras neural network
       alpha: A small number to multiply against newly generated weights to act
-        as a mask to apply to mutate Colony networks.
+        as a mask to apply when mutatating Colony networks.
     """
     self.alpha = alpha
     self.mask = self._gen_mask(nn)

@@ -13,9 +13,12 @@ class COGA:
     self.nn       = nn
     self.pop_size = num_colonies
     self.colonies = [Colony(nn) for _ in range(num_colonies)]
-    self.workers  = [Worker(nn, alpha) for _ in range(num_workers)]
+    self.workers  = [Worker(nn, random.uniform(.01, max(alpha, .01))) for _ in range(num_workers)]
     self.pyramid  =  self._create_pyramid()
     self._assign_workers()
+    
+    #load provided network in first colony
+    self.colonies[0].set_network(nn)
 
   def train(self, env, generations=1, elites=None, 
             sharpness=1, goal=None, patience=25, 
@@ -203,7 +206,7 @@ class COGA:
         workers_remaining=0
       i+=1
 
-    pyramid = sorted(pyramid, reverse=True)
+    pyramid = sorted(pyramid, reverse=False)
     return pyramid
   
   def _assign_workers(self,):

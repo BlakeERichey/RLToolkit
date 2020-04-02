@@ -7,7 +7,7 @@ from rltoolkit.methods import COGA
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph
 
-env = gym.make('CartPole-v0')
+env = gym.make('CartPole-v1')
 try:
   print(env.unwrapped.get_action_meanings())
 except:
@@ -20,37 +20,46 @@ model.add(Dense(env.action_space.n, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
 
+filename = 'cartpole'
+
+#Load pretrained model
+try:
+  model = load_model(f'{filename}.h5')
+except:
+  pass
+
 #Initialize COGA Learning Method
 method = COGA(model, 
               num_colonies=20, 
-              num_workers=30,
-              alpha=0.1,
+              num_workers=50,
+              alpha=0.2,
             )
 
 #Enable graphing of rewards
 graph = Graph()
 #Make a checkpoint to save best model during training
-ckpt = Checkpoint('cartpole.h5')
+ckpt = Checkpoint(f'{filename}.h5')
 
 #Train neural network for 25 generations
 nn = method.train(env,
-                  goal=200,
-                  elites=4, 
+                  goal=500,
+                  elites=5,
                   verbose=1,
-                  patience=3,
+                  patience=10,
                   validate=True,
-                  generations=25,
+                  generations=100,
                   callbacks=[graph, ckpt], 
-                  sharpness=20,
+                  sharpness=25,
                 )
 
 #Save and show rewards
 version = ['min', 'max', 'avg']
 graph.show(version=version)
-graph.save('cartpole.png', version=version)
+graph.save(f'{filename}.png', version=version)
+nn.save('nn.h5')
 
 #Load best saved model
-model = load_model('cartpole.h5')
+model = load_model(f'{filename}.h5')
 
 #Test models results for 5 episodes
 episodes = 5
