@@ -25,7 +25,7 @@ model.summary()
 method = COGA(model, 
               num_colonies=20, 
               num_workers=30,
-              alpha=0.1,
+              #alpha=0.1,
             )
 
 #Enable graphing of rewards
@@ -38,9 +38,9 @@ nn = method.train(env,
                   goal=-110,
                   elites=4, 
                   verbose=1,
-                  patience=10,
+                  patience=3,
                   validate=True,
-                  generations=100,
+                  generations=25,
                   callbacks=[graph, ckpt], 
                   sharpness=2,
                 )
