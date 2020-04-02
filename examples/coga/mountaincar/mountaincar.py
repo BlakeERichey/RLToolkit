@@ -33,7 +33,7 @@ graph = Graph()
 #Make a checkpoint to save best model during training
 ckpt = Checkpoint('mc.h5')
 
-#Train neural network for 100 generations
+#Train neural network for 25 generations
 nn = method.train(env,
                   goal=-110,
                   elites=4, 

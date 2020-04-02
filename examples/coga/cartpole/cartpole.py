@@ -20,7 +20,7 @@ model.add(Dense(env.action_space.n, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
 
-#Initialize Deep Q Learning Method
+#Initialize COGA Learning Method
 method = COGA(model, 
               num_colonies=20, 
               num_workers=30,
@@ -32,7 +32,7 @@ graph = Graph()
 #Make a checkpoint to save best model during training
 ckpt = Checkpoint('cartpole.h5')
 
-#Train neural network for 50 episodes
+#Train neural network for 25 generations
 nn = method.train(env,
                   goal=200,
                   elites=4, 
