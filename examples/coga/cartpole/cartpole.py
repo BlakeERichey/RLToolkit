@@ -38,10 +38,14 @@ model.add(Dense(env.action_space.n, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
 
-@profile
+# @profile
 def coga(model):
   #Initialize Deep Q Learning Method
-  method = COGA(model, 20, 25)
+  method = COGA(model, 
+                num_colonies=20, 
+                num_workers=30,
+                alpha=0.1,
+              )
 
   #Enable graphing of rewards
   graph = Graph()
@@ -55,8 +59,8 @@ def coga(model):
                     patience=3,
                     validate=True,
                     generations=25,
-                    callbacks=[graph], 
-                    sharpness=1,
+                    callbacks=[graph, ckpt], 
+                    sharpness=2,
                   )
 
   #Save and show rewards
@@ -65,11 +69,12 @@ def coga(model):
   graph.save('cartpole.png', version=version)
 
   #Load best saved model
-  # model = load_model('cartpole.h5')
-  model = nn
+  model = load_model('cartpole.h5')
+  # model = nn
 
   #Test models results for 5 episodes
-  avg = test_network(model, env, episodes=5, render=True, verbose=1)
-  # print('Average after 100 episodes:', avg)
+  episodes = 5
+  avg = test_network(model, env, episodes=episodes, render=True, verbose=1)
+  print(f'Average after {episodes} episodes:', avg)
 
 coga(model)
