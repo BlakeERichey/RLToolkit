@@ -24,7 +24,6 @@ model.summary()
 method = DQL(rb_size=500, replay_batch_size=128)
 ckpt = Checkpoint('mountaincar.h5')
 
-"""
 nn = method.train(model, 
                   env,
                   10000,
@@ -34,7 +33,6 @@ nn = method.train(model,
                   batch_size=64,
                   callbacks=[ckpt],
                 )
-"""
 
 model.load_weights('mountain_best.h5')
 
