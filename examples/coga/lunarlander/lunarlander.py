@@ -15,14 +15,14 @@ except:
 
 #Build network
 model = Sequential()
-model.add(Dense(64, activation='relu', input_shape=env.observation_space.shape))
+model.add(Dense(256, activation='relu', input_shape=env.observation_space.shape))
 model.add(Dense(256, activation='relu'))
 model.add(Dense(256, activation='relu'))
 model.add(Dense(env.action_space.n, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
 
-filename = 'lunarlander2'
+filename = 'lunarlander'
 
 #Load pretrained model
 try:
@@ -32,8 +32,8 @@ except:
 
 #Initialize COGA Learning Method
 method = COGA(model, 
-              num_colonies=100, 
-              num_workers=150,
+              num_colonies=60, 
+              num_workers=100,
               alpha=0.2,
             )
 
@@ -45,7 +45,7 @@ ckpt = Checkpoint(f'{filename}.h5')
 #Train neural network for 25 generations
 nn = method.train(env,
                   goal=200,
-                  elites=20,
+                  elites=15,
                   verbose=1,
                   patience=10,
                   validate=True,

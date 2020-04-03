@@ -49,9 +49,9 @@ nn = method.train(env,
                   verbose=1,
                   patience=10,
                   validate=True,
-                  generations=100,
+                  generations=500,
                   callbacks=[graph, ckpt], 
-                  sharpness=25,
+                  sharpness=20,
                 )
 
 #Save and show rewards
