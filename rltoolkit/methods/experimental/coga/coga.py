@@ -72,7 +72,7 @@ class COGA:
       )
 
       #Display Results
-      if isinstance(verbose, int) and verbose and gen % verbose == 0:
+      if isinstance(verbose, int) and verbose and gen % verbose == 0 or verbose == 'testing':
         dt = datetime.now() - start_time
         t = format_time(dt.total_seconds())
 

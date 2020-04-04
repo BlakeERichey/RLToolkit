@@ -15,9 +15,8 @@ except:
 
 #Build network
 model = Sequential()
-model.add(Dense(256, activation='relu', input_shape=env.observation_space.shape))
-model.add(Dense(256, activation='relu'))
-model.add(Dense(256, activation='relu'))
+model.add(Dense(128, activation='relu', input_shape=env.observation_space.shape))
+model.add(Dense(128, activation='relu'))
 model.add(Dense(env.action_space.n, activation='linear'))
 model.compile(Adam(0.001), loss='mse')
 model.summary()
@@ -31,7 +30,7 @@ except:
   pass
 
 #Initialize DQL method
-method = DQL(rb_size=2500, replay_batch_size=256)
+method = DQL(rb_size=200000, replay_batch_size=8192)
 
 #Enable graphing of rewards
 graph = Graph()
@@ -41,10 +40,10 @@ ckpt = Checkpoint(f'{filename}.h5')
 #Train neural network for 2000 episodes
 nn = method.train(model, 
                   env,
-                  2000,
-                  epsilon_start=.99,
-                  epsilon_decay=.995,
-                  min_epsilon=.01,
+                  1000,
+                  epsilon_start=1,
+                  epsilon_decay=.99,
+                  # min_epsilon=.001,
                   batch_size=64,
                   callbacks=[ckpt, graph],
                 )

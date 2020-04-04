@@ -24,7 +24,7 @@ class Graph:
     """
     rewards = params.get('rewards')
 
-    if not rewards:
+    if rewards is None:
       raise ValueError('No `rewards` in Parameters for Graph callback', params)
 
     min_r = min(rewards)
@@ -116,9 +116,9 @@ class Checkpoint:
     validations = params.get('validations') #is permissible to not be included
     v_total     = params.get('best_total_validations')
     
-    if not rewards or not total:
+    if rewards is None or total is None:
       raise ValueError('`rewards` and `best_total` Parameters necessary for Checkpoint callback.run()', params)
-    if validations and not v_total:
+    if validations is not None and not v_total is not None:
       raise ValueError('`best_total_validations` must be provided when measuring validations', params)
 
     updated = False #save again?

@@ -58,6 +58,7 @@ class DQL:
     self._discrete = hasattr(self.env.action_space, 'n') #environment is discrete
 
     start_time = datetime.now()
+    print('Starting training:', start_time)
     for i in range(episodes):
       rewards, steps = self._run_episode()
       
