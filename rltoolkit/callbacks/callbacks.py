@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from rltoolkit.errors import EarlyStopError
 
 class Graph:
   """
@@ -146,3 +147,68 @@ class Checkpoint:
         self.best_model.save_weights(self.filename)
       else:
         self.best_model.save(self.filename)
+
+class EarlyStop():
+  """
+    Callback that manadates continued progress from a training method. 
+    In the event the method ceases to improve, the training is halted.
+  """
+
+  def __init__(self, patience=None):
+    """
+      # Arguments
+        patience: Int. Represents number of Generations or Episodes training method
+          is permitted to achieve better results. Training will be stopped early if
+          no improvement to results are found.
+    """
+    self.max_reward   = None
+    self.max_v_reward = None
+    self.patience     = patience
+    self.last_imp     = 0 #time since last improvement
+  
+  def run(self,obj,params):
+    """
+      Determines if the best model stored has been improved.
+      If so, saves the new best model. 
+      # Arguments
+        obj: A RL Method. Used to acquire methods network instance variable.
+        params: Dictionary that contains pertinent information for callbacks.
+          Typically contains list of rewards for an episode and validation rewards.
+    """
+    rewards     = params.get('rewards')
+    total       = params.get('best_total')
+    validations = params.get('validations') #is permissible to not be included
+    v_total     = params.get('best_total_validations')
+
+    if rewards is None or total is None:
+      raise ValueError('`rewards` and `best_total` Parameters necessary for Checkpoint callback.run()', params)
+    if validations is not None and not v_total is not None:
+      raise ValueError('`best_total_validations` must be provided when measuring validations', params)
+    
+    improved = False
+    if self.max_reward is None: #first gen/episode
+      improved = True
+      reward = total
+      if validations is not None:
+        v_reward = v_total
+    else:
+      reward = total
+      if validations is not None:
+        v_reward = v_total
+      if reward > self.max_reward:
+        improved = True
+      if reward == self.max_reward and v_reward > self.max_v_reward:
+        improved = True
+    
+    if improved:
+      self.last_imp = 0
+      self.max_reward = reward
+      if validations is not None:
+        self.max_v_reward = v_reward
+    else:
+      self.last_imp += 1
+    
+    if self.last_imp >= self.patience:
+      raise EarlyStopError
+    
+      

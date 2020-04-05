@@ -1,6 +1,7 @@
 import keras
 import random
 import numpy as np
+from rltoolkit.wrappers import EnvManager
 
 class ReplayBuffer:
 
@@ -55,28 +56,11 @@ def test_network(nn, env, episodes=1, render=False, verbose=0):
     render: Pass True to render at each step.
     verbose: Int. Reports results of training after this many episodes. 
   """
-  discrete = hasattr(env.action_space, 'n') #environment is discrete
+  envman = EnvManager(nn, env)
   
   total_rewards = []
   for i in range(episodes):
-    done = False
-    rewards = []
-    envstate = env.reset()
-    while not done:
-      #determine action
-      qvals = nn.predict(np.expand_dims(envstate, axis=0))[0]
-      if discrete:
-        action = np.argmax(qvals)
-      else:
-        action = qvals
-
-      #take action
-      envstate, reward, done, info = env.step(action)
-      rewards.append(reward)
-
-      if render:
-        env.render()
-    
+    rewards = envman.run(render=render) #run 1 episode
     total_rewards.append(sum(rewards))
 
     if verbose and i % verbose == 0:
@@ -85,7 +69,7 @@ def test_network(nn, env, episodes=1, render=False, verbose=0):
       print(results)
   
   if render:
-    env.close()
+    envman.close()
 
   result = round(sum(total_rewards)/len(total_rewards), 5)
   return result

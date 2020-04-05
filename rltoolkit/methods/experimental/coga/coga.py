@@ -5,6 +5,7 @@ from .worker import Worker
 from datetime import datetime
 from collections import namedtuple
 from rltoolkit.utils import format_time
+from rltoolkit.errors import EarlyStopError
 
 class COGA:
 
@@ -13,7 +14,7 @@ class COGA:
     self.nn       = nn
     self.pop_size = num_colonies
     self.colonies = [Colony(nn) for _ in range(num_colonies)]
-    self.workers  = [Worker(nn, random.uniform(.01, max(alpha, .01))) for _ in range(num_workers)]
+    self.workers  = [Worker(nn, alpha) for _ in range(num_workers)]
     self.pyramid  =  self._create_pyramid()
     self._assign_workers()
     
@@ -151,8 +152,15 @@ class COGA:
           'rewards':                 [score.reward   for score in ranked], #res
           'validations':             [score.v_reward for score in ranked], #val
         }
+        stop = False
         for callback in callbacks:
-          callback.run(self, params)
+          try:
+            callback.run(self, params)
+          except EarlyStopError:
+            stop = True
+        
+        if stop:
+          break
 
       if goal_met:
         break

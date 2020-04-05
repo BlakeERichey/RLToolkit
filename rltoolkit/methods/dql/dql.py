@@ -1,6 +1,7 @@
 import numpy as np
 from datetime import datetime
 from rltoolkit.utils import ReplayBuffer, format_time
+from rltoolkit.errors import EarlyStopError
 
 class DQL:
 
@@ -78,8 +79,15 @@ class DQL:
         'rewards': rewards,
         'best_total': sum(rewards) #precalculated sum of rewards
       }
+      stop = False
       for callback in callbacks:
-        callback.run(self, params)
+        try:
+          callback.run(self, params)
+        except EarlyStopError:
+          stop = True
+      
+      if stop:
+        break
 
       self.epsilon = max(self.epsilon*self.epsilon_decay, self.min_epsilon)
     

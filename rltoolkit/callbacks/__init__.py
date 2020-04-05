@@ -1,1 +1,1 @@
-from .callbacks import Checkpoint, Graph
+from .callbacks import Checkpoint, Graph, EarlyStop
