@@ -13,7 +13,12 @@ class COGA:
     #Assert num_workers >= num_colonies and >=0 and an Int
     self.nn       = nn
     self.pop_size = num_colonies
-    self.colonies = [Colony(nn) for _ in range(num_colonies)]
+    
+    colony = Colony(nn)
+    self.colonies = [colony]
+    for _ in range(num_colonies-1):
+      self.colonies.append(colony.clone())
+    
     self.workers  = [Worker(nn, alpha) for _ in range(num_workers)]
     self.pyramid  =  self._create_pyramid()
     self._assign_workers()
@@ -214,7 +219,7 @@ class COGA:
         workers_remaining=0
       i+=1
 
-    pyramid = sorted(pyramid, reverse=False)
+    pyramid = sorted(pyramid, reverse=True)
     return pyramid
   
   def _assign_workers(self,):

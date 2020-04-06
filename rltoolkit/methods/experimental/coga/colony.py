@@ -95,9 +95,7 @@ class Colony:
             #print(new_weights[i])
             #print()
 
-        colony = Colony(self.nn)
-        colony.nn.set_weights(new_weights)
-        colony.weights = new_weights
+        colony = self.clone(new_weights)
         
         return colony
 
@@ -113,6 +111,30 @@ class Colony:
         weights = network.get_weights()
         self.nn.set_weights(weights)
         self.weights = weights
+
+    def quick_copy(self,):
+      class Empty: pass
+      newcopy = Empty()
+      newcopy.__class__ = self.__class__
+      return newcopy
+    
+    def clone(self, weights=None):
+      """
+        quickly copies a network to bypass __init__ overhead. 
+        The overhead is significant enough to warrant this utility function.
+      """
+      colony = self.quick_copy()
+      colony.workers = list()
+      colony.best_worker = None
+      colony.nn = clone_model(self.nn)
+
+      if weights is None:
+        colony.weights = colony.nn.get_weights()
+      else:
+        colony.nn.set_weights(weights)
+        colony.weights = weights
+      
+      return colony
 
 def test_breed():
     '''

@@ -12,7 +12,10 @@ class EnvManager():
     self.discrete = hasattr(env.action_space, 'n') #environment is discrete
 
     self.ob = None
-    self.time_dist = (nn.input.shape.ndims == 3) #not correct when dealing with CNNs
+
+    # Technically correct. (30,256,256,3)[1:] == (256,256,3). 
+    # Doesnt test that network is valid. Handled elsewhere
+    self.time_dist = (nn.input_shape[1:] != env.observation_space.shape)
     if self.time_dist:
       self.n_timesteps = nn.input.shape[1]
   
