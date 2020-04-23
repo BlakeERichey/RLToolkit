@@ -61,7 +61,7 @@ comprehensive guide, but some basic neural network examples are shown below (com
 ```python
   model = Sequential()
   #Input layer
-  model.add(Conv2D(64, kernel_size=3, activation='relu', input_shape=(28,28,1)))
+  model.add(Conv2D(64, kernel_size=3, activation='relu', input_shape=env.observation_space.shape))
 
   #Add hidden layer
   model.add(Conv2D(32, kernel_size=3, activation='relu'))
@@ -116,8 +116,7 @@ Future Implementations:
 You can initialize a method like so:  
 `method = DQL(rb_size=500, replay_batch_size=32)`  
 
-More examples of initializing method can be found in [examples]
-(https://github.com/BlakeERichey/RLToolkit/tree/master/examples)  
+More examples of initializing methods can be found in [examples](https://github.com/BlakeERichey/RLToolkit/tree/master/examples)  
 
 # Solve the Environment  
 Once an environment, neural network, and method have been chose you can create your AI easily:
@@ -150,7 +149,7 @@ Once an environment, neural network, and method have been chose you can create y
 Each method has its own parameters and lets you fine tune them in the `method.train` function call.  
 
 # Test your AI  
-We want the make testing of your AI easy, so we provided a for doing so. 
+We want the make testing of your AI easy, so we provided a utility for doing so. 
 With an AI, or Keras neural network, and a gym environment, simply call the 
 `test_network` function like so:  
 ```python
