@@ -71,7 +71,7 @@ comprehensive guide, but some basic neural network examples are shown below (com
   
   #Add FCN
   model.add(Flatten())
-  model.add(Dense(10, activation='softmax'))
+  model.add(Dense(env.action_space.n, activation='softmax'))
 
   #compile network
   model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
