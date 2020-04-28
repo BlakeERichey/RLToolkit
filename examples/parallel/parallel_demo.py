@@ -10,7 +10,7 @@ def example(i, qty, name=None):
 
 # =========== DEMO ============================================
 if __name__ == '__main__':
-  backend = TaskScheduler(3) #start task manager with 3 cores available
+  backend = TaskScheduler(10) #start task manager with 3 cores available
   
   #Start 3 tasks, queue 7
   for i in range(10):

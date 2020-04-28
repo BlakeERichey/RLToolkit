@@ -45,7 +45,7 @@ class ReplayBuffer:
     batch_size = min(self.size, batch_size)
     return random.sample(self.memory, batch_size)
 
-def test_network(nn, env, episodes=1, render=False, verbose=0):
+def test_network(nn, env, episodes=1, render=False, verbose=0, seed=None):
   """
     Tests a Keras neural network by running it through an environment
 
@@ -55,7 +55,9 @@ def test_network(nn, env, episodes=1, render=False, verbose=0):
     episodes: How many episodes to run through gym environment.
     render: Pass True to render at each step.
     verbose: Int. Reports results of training after this many episodes. 
+    seed: Int. Numpy RandomState will be configured using this seed.
   """
+  env.seed(seed=seed)
   envman = EnvManager(nn, env)
   
   total_rewards = []
