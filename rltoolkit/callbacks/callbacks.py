@@ -130,12 +130,15 @@ class Checkpoint:
         v_reward = v_total
     else:
       reward = total
-      if validations is not None:
-        v_reward = v_total
       if reward > self.max_reward:
         updated = True
-      if reward == self.max_reward and v_reward > self.max_v_reward:
+      if reward == self.max_reward:
+        if validations is not None:
+          v_reward = v_total
+          if v_reward > self.max_v_reward:
             updated = True
+        else:
+          updated = True
     
     if updated:
       self.max_reward = reward
@@ -193,12 +196,15 @@ class EarlyStop():
         v_reward = v_total
     else:
       reward = total
-      if validations is not None:
-        v_reward = v_total
       if reward > self.max_reward:
         improved = True
-      if reward == self.max_reward and v_reward > self.max_v_reward:
-        improved = True
+      if reward == self.max_reward:
+        if validations is not None:
+          v_reward = v_total
+          if v_reward > self.max_v_reward:
+            improved = True
+        else:
+          improved = True
     
     if improved:
       self.last_imp = 0
