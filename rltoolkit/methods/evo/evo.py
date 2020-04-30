@@ -109,7 +109,7 @@ class Evo:
 
         #perform breeding
         new_individuals  = []
-        for i in range(self.elites, self.pop_size):
+        for i in range(self.pop_size - self.elites):
           parent1 = population[mating_pool[i].id] #mating_pool[i] = (id, reward)
           parent2 = population[mating_pool[-i].id]
           new_weights = self._crossover(parent1, parent2)
@@ -227,7 +227,6 @@ class Evo:
     
     remaining = random.sample(ranked[elites:], len(ranked)-elites)
     mating_pool = mating_pool+remaining
-    random.shuffle(mating_pool)
     return mating_pool
 
   def _mutate(self, weights, alpha=.01):
