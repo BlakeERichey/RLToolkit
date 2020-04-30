@@ -1,12 +1,14 @@
 import random
 import numpy as np
+from copy import deepcopy
 from datetime import datetime
 from gym.utils import seeding
-from collections import namedtuple
-from rltoolkit.utils import format_time
-from rltoolkit.errors import EarlyStopError
-from rltoolkit.utils import test_network, truncate_weights
+from keras.optimizers import Adam
 from keras.models import clone_model
+from collections import namedtuple
+from rltoolkit.errors import EarlyStopError
+from rltoolkit.backend import TaskScheduler
+from rltoolkit.utils import format_time, test_network, truncate_weights
 
 class Evo:
   """
@@ -36,7 +38,8 @@ class Evo:
     self.elites   = elites
     self.pop_size = pop_size
   
-  def train(self, nn, env, generations=1, goal=None, episodes=1, verbose=1, callbacks=[]):
+  def train(self, nn, env, generations=1, goal=None, episodes=1, verbose=1, 
+            callbacks=[], cores=1):
     """
       Trains using NeuroEvolutionary RL method.
 
@@ -49,14 +52,27 @@ class Evo:
         is reached.
       verbose: Int. Reports results of training after this many generations.
       callbacks:  list of functions to call upon completion of a generation.
+      cores: Int. How many cores to run environment simulation on. 
     """
+    assert isinstance(cores, int) and cores > 0, "Cores must be a positive integer."
 
     print('Creating Population of Size: %s...' %(self.pop_size), end='')
+    
     self.nn = nn
+    self.envs = [env]
+    self.networks = [nn]
+    self.backend = TaskScheduler(num_cores=cores)
     population = [truncate_weights(nn.get_weights(), n_decimals=3)]
-    for _ in range(1, self.pop_size):
+
+    for i in range(1, self.pop_size):
       nn = clone_model(nn)
       population.append(truncate_weights(nn.get_weights(), n_decimals=3))
+
+      #create taskscheduler dependencies
+      if len(self.envs) < cores:
+        self.networks.append(nn)
+        self.envs.append(deepcopy(env))
+        self.networks[i].compile(optimizer=Adam(), loss='mse')
     
     print('Done.')
     start_time = datetime.now()
@@ -86,8 +102,8 @@ class Evo:
         self.nn.set_weights(best_weights)
 
         params = {
-          'best_total':              ranked[0].reward,
-          'rewards':                 [score.reward   for score in ranked], #res
+          'best_total': ranked[0].reward,
+          'rewards':    [score.reward   for score in ranked], #res
         }
         early_stop = False
         for callback in callbacks:
@@ -115,9 +131,10 @@ class Evo:
           new_weights = self._crossover(parent1, parent2)
           new_individuals.append(new_weights)
 
-        #modify population and mutate
+        #modify population and mutate, ignoring elites
         for i in range(self.elites, self.pop_size):
-          population[i] = self._mutate(new_individuals[i-self.elites])
+          _id = ranked[i].id
+          population[_id] = self._mutate(new_individuals[i-self.elites])
 
     best_weights = population[ranked[0].id]
     self.nn.set_weights(best_weights)
@@ -145,16 +162,32 @@ class Evo:
     fitnesses = []
     Fitness = namedtuple('fitness', 'id reward')
     _, seed = seeding.np_random()
-    for i, weights in enumerate(population):
-      self.nn.set_weights(weights)
-      avg = test_network(self.nn, env, episodes, seed=seed)
-      fitnesses.append(Fitness(i, avg))
-    
+    num_cores = self.backend.num_cores
+
+    if num_cores > 1:
+      for i, weights in enumerate(population):
+        
+        env = self.envs[i%num_cores]
+        nn  = self.networks[i%num_cores]
+        nn.set_weights(weights)
+        self.backend.run(test_network, nn, env, episodes, seed=seed)
+      
+      res = self.backend.join()
+      for i, avg in enumerate(res):
+        fitnesses.append(Fitness(i, avg))
+    else:
+      for i, weights in enumerate(population):
+        self.nn.set_weights(weights)
+        avg = test_network(self.nn, env, episodes, seed=seed)
+        fitnesses.append(Fitness(i, avg))
+ 
     ranked = sorted(
       fitnesses, 
       key=lambda fitness: (fitness.reward),
       reverse=True
     )
+
+    # print('Ranked:', ranked)
 
     return ranked
 
@@ -230,8 +263,7 @@ class Evo:
     return mating_pool
 
   def _mutate(self, weights, alpha=.01):
-    mask = truncate_weights(weights, alpha=alpha, n_decimals=3)
-    
+    mask = truncate_weights(weights.copy(), alpha=alpha, n_decimals=3)
     #Apply mask in place
     for i, layer in enumerate(weights):
       layer += mask[i]

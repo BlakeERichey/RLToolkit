@@ -3,6 +3,10 @@ import logging
 import multiprocessing
 from   multiprocessing import Process, Manager
 
+#disable warnings in tensorflow subprocesses
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+logging.disable(logging.WARNING)
+
 class TaskScheduler:
 
   """Manages tasks and assigns them to available cores"""
@@ -11,9 +15,6 @@ class TaskScheduler:
     """
       Initializes TaskScheduler with a configurable number of cores
     """
-    #disable warnings in subprocess
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-    logging.disable(logging.WARNING)
     
     self.pid       = 0     #process id, links queues results with order of process execution
     self.queued    = []    #process that have yet to run
