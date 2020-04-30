@@ -263,6 +263,7 @@ class Evo:
     return mating_pool
 
   def _mutate(self, weights, alpha=.01):
+    alpha = round(np.random.normal(0, .05, 1)[0], 2)
     mask = truncate_weights(weights.copy(), alpha=alpha, n_decimals=3)
     #Apply mask in place
     for i, layer in enumerate(weights):

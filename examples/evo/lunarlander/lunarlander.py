@@ -9,7 +9,7 @@ from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
 
 if __name__ == '__main__':
   #========== Initialize Environment ============================================
-  env = gym.make('CartPole-v0')
+  env = gym.make('LunarLander-v2')
   try:
     print(env.unwrapped.get_action_meanings())
   except:
@@ -17,12 +17,14 @@ if __name__ == '__main__':
 
   #========== Build network =====================================================
   model = Sequential()
-  model.add(Dense(32,  activation='relu', input_shape=env.observation_space.shape)) #add input layer
-  model.add(Dense(env.action_space.n, activation='linear')) #add output layer
+  model.add(Dense(64,  activation='relu', input_shape=env.observation_space.shape)) #add input layer
+  model.add(Dense(256, activation='relu'))                  #change activation method
+  model.add(Dense(128, activation='relu'))                  #another hidden layer
+  model.add(Dense(env.action_space.n, activation='softmax')) #add output layer
   model.compile(Adam(0.001), loss='mse')                    #compile network
 
   #========== Demo ==============================================================
-  filename = 'cartpole'
+  filename = 'lunarlander'
   load_saved = False
 
   #Load pretrained model
@@ -41,8 +43,8 @@ if __name__ == '__main__':
   ckpt = Checkpoint(f'{filename}.h5')
 
   #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=12)
-  nn = method.train(model, env, generations=100, episodes=10, callbacks=[graph, ckpt], goal=200)
+  method = Evo(pop_size=50, elites=8)
+  nn = method.train(model, env, generations=250, episodes=5, callbacks=[graph, ckpt])
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']
@@ -61,4 +63,4 @@ if __name__ == '__main__':
 
   episodes = 100
   avg = test_network(model, env, episodes=episodes, render=False, verbose=0)
-  print(f'Average after {episodes} episodes:', avg)
+  print(f'Average after {episodes} episodes:', avg) #~194.74

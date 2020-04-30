@@ -3,7 +3,7 @@ import keras
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM
 from keras.optimizers import Adam
-from rltoolkit.utils import test_network
+from rltoolkit.utils import test_network, truncate_weights
 from rltoolkit.methods import Evo
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
 
@@ -27,10 +27,12 @@ if __name__ == '__main__':
   import numpy as np
   state = env.reset()
   pred1 = model.predict(np.expand_dims(state, axis=0))
-  weights = model.get_weights()
+  weights = truncate_weights(model.get_weights(), n_decimals=3)
   method = Evo(pop_size=50, elites=12)
-  new_weights = method._mutate(model.get_weights())
+  new_weights = method._mutate(weights)
   model.set_weights(new_weights)
   pred2 = model.predict(np.expand_dims(state, axis=0))
+  print('weights', weights)
+  print('new weights', new_weights)
   print(pred1)
   print(pred2)

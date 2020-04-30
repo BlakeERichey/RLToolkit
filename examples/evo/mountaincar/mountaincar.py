@@ -43,8 +43,8 @@ if __name__ == '__main__':
   ckpt = Checkpoint(f'{filename}.h5')
 
   #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=12)
-  nn = method.train(model, env, generations=100, episodes=10, callbacks=[graph, ckpt], cores=1)
+  method = Evo(pop_size=50, elites=8)
+  nn = method.train(model, env, generations=250, episodes=10, callbacks=[graph, ckpt])
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']
