@@ -4,6 +4,9 @@ from keras.layers import Dense, LSTM, TimeDistributed, Conv2D, MaxPooling2D, \
 from keras.optimizers import Adam
 
 def get_index(arr, i):
+  """
+    Helper function that removes the possibility of index error.
+  """
   try:
     rv = arr[i]
   except IndexError:
@@ -12,6 +15,21 @@ def get_index(arr, i):
   return rv
 
 def ANN(env, topology=[10], activations=['relu'], lr=0.001):
+  """
+    Creates an artificial Keras neural network of Densly connected layers.
+
+    #Arguments 
+    env: A Gym environment.
+    topology: a list of the quantity of nodes used for creating hidden layers 
+      of a neural network input and output layers are implicitly determined by 
+      the `env`. So `topology` should specifically be for hidden layers.
+    activations: the activation function for each hidden layer.
+    lr: learning rate for Adam optimizer.
+
+    #Returns 
+    A keras neural network with the desired topology tailored to fit the 
+    inputs and outputs of the provided gym environment.
+  """
   model = Sequential()
 
   layers = 0
@@ -37,6 +55,23 @@ def ANN(env, topology=[10], activations=['relu'], lr=0.001):
   return model
 
 def CNN(env, topology=[64], activations=['relu'], kernel_size=3, pool_size=2, lr=0.001):
+  """
+    Creates an Convultional Keras neural network.
+
+    #Arguments 
+    env: A Gym environment.
+    topology: a list of the quantity of filters used for creating input and 
+      hidden layers of a CNN. Output layer is implicitly determined by 
+      the `env`.
+    activations: the activation function for each layer excluding output.
+    kernel_size: Int. A window size for filters.
+    pool_size: When applying MaxPooling, the original image will shrink by this factor.
+    lr: learning rate for Adam optimizer.
+
+    #Returns 
+    A keras neural network with the desired topology tailored to fit the 
+    inputs and outputs of the provided gym environment.
+  """
   model = Sequential()
 
   layers = 0
@@ -66,7 +101,23 @@ def CNN(env, topology=[64], activations=['relu'], kernel_size=3, pool_size=2, lr
 
   return model
 
-def LSTM_ANN(env, n_timesteps=5, topology=[10], activations=['relu'], lr=0.001):
+def LSTM_ANN(env, n_timesteps=2, topology=[10], activations=['relu'], lr=0.001):
+  """
+    Creates an LSTM Keras neural network of Densly connected layers.
+
+    #Arguments 
+    env: A Gym environment.
+    n_timesteps: Int. The number of previous states maintained by the LSTM.
+    topology: a list of the quantity of nodes used for creating hidden layers 
+      of a neural network input and output layers are implicitly determined by 
+      the `env`. So `topology` should specifically be for hidden layers.
+    activations: the activation function for each hidden layer.
+    lr: learning rate for Adam optimizer.
+
+    #Returns 
+    A keras neural network with the desired topology tailored to fit the 
+    inputs and outputs of the provided gym environment.
+  """
   model = Sequential()
 
   layers = 0
@@ -93,6 +144,30 @@ def LSTM_ANN(env, n_timesteps=5, topology=[10], activations=['relu'], lr=0.001):
 
 def LSTM_CNN(env, n_timesteps=5, cnn_topology=[64], cnn_activations=['relu'],
   kernel_size=3, pool_size=2, fcn_topology=[16], fcn_activations=['relu'], lr=0.001):
+  """
+    Creates an TimeDistributed Convultional Keras neural network.
+
+    #Arguments 
+    env: A Gym environment.
+    n_timesteps: Int. The number of previous states maintained by the LSTM.
+    cnn_topology: a list of the quantity of filters used for creating input and 
+      hidden layers of a CNN. Includes the input layer and generates the 
+      convolutional base of the network.
+    cnn_activations: the activation function for each layer, excluding output, 
+      in the convolutional base.
+    kernel_size: Int. A window size for filters.
+    pool_size: When applying MaxPooling, the original image will shrink by this factor.
+    fcn_topology: a list of the quantity of nodes used for creating hidden layers 
+      of a FCN and output layers are implicitly determined by 
+      the `env`. So `topology` should specifically be for hidden layers. If an 
+      empty list is provided, the FCN will lead directly to an LSTM output layer.
+    fcn_activations: the activation function for each hidden layer in the FCN.
+    lr: learning rate for Adam optimizer.
+
+    #Returns 
+    A keras neural network with the desired topology tailored to fit the 
+    inputs and outputs of the provided gym environment.
+  """
 
   model = Sequential()
 

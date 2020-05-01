@@ -1,5 +1,3 @@
-###NOT SOLVED YET###
-
 import gym
 from keras.models import load_model
 from rltoolkit.methods import Evo
@@ -19,11 +17,9 @@ if __name__ == '__main__':
     pass
 
   #========== Build network =====================================================
-  model = LSTM_ANN(env, n_timesteps=5, topology=[2,64,64,16])
+  model = LSTM_ANN(env, n_timesteps=10, topology=[2,64,64,16])
 
-  #========== Demo ==============================================================
-
-  #Load pretrained model
+  #Load pretrained model?
   if not train_from_scratch:
     try:
       model = load_model(f'{filename}.h5')
@@ -40,7 +36,7 @@ if __name__ == '__main__':
 
   #========== Train network =====================================================
   method = Evo(pop_size=50, elites=8)
-  nn = method.train(model, env, generations=100, episodes=1, callbacks=[graph, ckpt], cores=1)
+  nn = method.train(model, env, generations=250, episodes=1, callbacks=[graph, ckpt], cores=1)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']
@@ -50,7 +46,7 @@ if __name__ == '__main__':
 
   #========== Evaluate Results ==================================================
   #Load best saved model
-  model = load_model(f'{filename}.h5')
+  model = load_model('nn.h5')
 
   # Test models results for 5 episodes
   episodes = 5
