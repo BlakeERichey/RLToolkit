@@ -1,30 +1,34 @@
-###NOT SOLVED YET###
-
 import gym
-from keras.models import load_model
-from rltoolkit.methods import Evo
-from rltoolkit.agents import LSTM_ANN
+import keras
+from keras.models import Sequential, load_model
+from keras.layers import Dense, LSTM
+from keras.optimizers import Adam
 from rltoolkit.utils import test_network
+from rltoolkit.methods import Evo
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
 
 if __name__ == '__main__':
   #========== Initialize Environment ============================================
-  filename = 'MountainCar'
-  train_from_scratch = True
-
-  env = gym.make(f'{filename}-v0')
+  env = gym.make('BipedalWalker-v2')
   try:
     print(env.unwrapped.get_action_meanings())
   except:
     pass
 
   #========== Build network =====================================================
-  model = LSTM_ANN(env, n_timesteps=5, topology=[2,64,64,16])
+  model = Sequential()
+  model.add(Dense(64,  activation='relu', input_shape=env.observation_space.shape)) #add input layer
+  model.add(Dense(256, activation='relu'))                  #change activation method
+  model.add(Dense(128, activation='relu'))                  #another hidden layer
+  model.add(Dense(4, activation='linear')) #add output layer
+  model.compile(Adam(0.001), loss='mse')                    #compile network
 
   #========== Demo ==============================================================
+  filename = 'bipedal'
+  load_saved = False
 
   #Load pretrained model
-  if not train_from_scratch:
+  if load_saved:
     try:
       model = load_model(f'{filename}.h5')
     except:
@@ -40,7 +44,7 @@ if __name__ == '__main__':
 
   #========== Train network =====================================================
   method = Evo(pop_size=50, elites=8)
-  nn = method.train(model, env, generations=100, episodes=1, callbacks=[graph, ckpt], cores=1)
+  nn = method.train(model, env, generations=250, episodes=5, callbacks=[graph, ckpt])
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']

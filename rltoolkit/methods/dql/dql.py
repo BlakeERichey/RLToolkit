@@ -8,6 +8,12 @@ class DQL:
   """
     DQL is a class the encapsulates the Deep Q Learning Method for 
     Reinforcement Learning.
+
+    # Arguments
+      gamma: Discount factor. Effectively a ratio of short term rewards 
+        significance to long term reward signficance. 
+      rb_size: ReplayBuffer size.
+      replay_batch_size: size of batches to take from ReplayBuffer at each step
   """
 
   def __init__(self,gamma=.9,rb_size=100,replay_batch_size=10):

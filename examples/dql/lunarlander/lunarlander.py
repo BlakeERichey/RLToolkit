@@ -1,8 +1,7 @@
 import gym
 import keras
-from keras.models import Sequential, load_model
-from keras.layers import Dense
-from keras.optimizers import Adam
+from keras.models import load_model
+from rltoolkit.agents import ANN
 from rltoolkit.methods import DQL
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph
@@ -14,12 +13,7 @@ except:
   pass
 
 #Build network
-model = Sequential()
-model.add(Dense(128, activation='relu', input_shape=env.observation_space.shape))
-model.add(Dense(128, activation='relu'))
-model.add(Dense(env.action_space.n, activation='linear'))
-model.compile(Adam(0.001), loss='mse')
-model.summary()
+model = ANN(env, topology=[64,256,128])
 
 filename = 'lunarlander'
 
@@ -30,7 +24,7 @@ except:
   pass
 
 #Initialize DQL method
-method = DQL(rb_size=200000, replay_batch_size=8192)
+method = DQL(rb_size=200000, replay_batch_size=1024)
 
 #Enable graphing of rewards
 graph = Graph()
@@ -43,7 +37,7 @@ nn = method.train(model,
                   1000,
                   epsilon_start=1,
                   epsilon_decay=.99,
-                  # min_epsilon=.001,
+                  min_epsilon=.05,
                   batch_size=64,
                   callbacks=[ckpt, graph],
                 )
@@ -56,7 +50,11 @@ nn.save('nn.h5')
 #load best model
 model.load_weights(f'{filename}.h5')
 
-#Test model results for 10 episodes
-episodes = 10
-avg = test_network(model, env, episodes, render=True, verbose=1)
+# Test models results for 5 episodes
+episodes = 5
+avg = test_network(model, env, episodes=episodes, render=True, verbose=1)
+print(f'Average after {episodes} episodes:', avg)
+
+episodes = 100
+avg = test_network(model, env, episodes=episodes, render=False, verbose=0)
 print(f'Average after {episodes} episodes:', avg)

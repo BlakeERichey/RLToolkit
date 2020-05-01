@@ -1,32 +1,26 @@
 import gym
-import keras
-from keras.models import Sequential, load_model
-from keras.layers import Dense, LSTM
-from keras.optimizers import Adam
-from rltoolkit.utils import test_network
+from keras.models import load_model
 from rltoolkit.methods import Evo
+from rltoolkit.agents import ANN
+from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
 
 if __name__ == '__main__':
   #========== Initialize Environment ============================================
-  env = gym.make('CartPole-v0')
+  filename = 'CartPole'
+  train_from_scratch = True
+
+  env = gym.make(f'{filename}-v0')
   try:
     print(env.unwrapped.get_action_meanings())
   except:
     pass
 
   #========== Build network =====================================================
-  model = Sequential()
-  model.add(Dense(32,  activation='relu', input_shape=env.observation_space.shape)) #add input layer
-  model.add(Dense(env.action_space.n, activation='linear')) #add output layer
-  model.compile(Adam(0.001), loss='mse')                    #compile network
+  model = ANN(env, topology=[32])
 
-  #========== Demo ==============================================================
-  filename = 'cartpole'
-  load_saved = False
-
-  #Load pretrained model
-  if load_saved:
+  #Load pretrained model?
+  if not train_from_scratch:
     try:
       model = load_model(f'{filename}.h5')
     except:
@@ -41,8 +35,8 @@ if __name__ == '__main__':
   ckpt = Checkpoint(f'{filename}.h5')
 
   #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=12)
-  nn = method.train(model, env, generations=100, episodes=10, callbacks=[graph, ckpt], goal=200)
+  method = Evo(pop_size=20, elites=4)
+  nn = method.train(model, env, generations=25, episodes=10, callbacks=[graph, ckpt], goal=200)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']
