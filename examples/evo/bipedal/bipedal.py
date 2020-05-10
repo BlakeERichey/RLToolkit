@@ -3,7 +3,7 @@
 import gym
 from keras.models import load_model
 from rltoolkit.methods import Evo
-from rltoolkit.agents import LSTM_ANN
+from rltoolkit.agents import LSTM_ANN, ANN
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
 
@@ -19,7 +19,7 @@ if __name__ == '__main__':
     pass
 
   #========== Build network =====================================================
-  model = LSTM_ANN(env, n_timesteps=2, topology=[128,256,64,32])
+  model = ANN(env, topology=[2,64,256,256,64])
 
   #Load pretrained model?
   if not train_from_scratch:
@@ -37,8 +37,8 @@ if __name__ == '__main__':
   ckpt = Checkpoint(f'{filename}.h5')
 
   #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=8)
-  nn = method.train(model, env, generations=250, episodes=1, callbacks=[graph, ckpt], cores=3)
+  method = Evo(pop_size=150, elites=30)
+  nn = method.train(model, env, generations=2000, episodes=1, callbacks=[graph, ckpt], cores=1)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']

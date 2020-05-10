@@ -7,7 +7,7 @@ from keras.optimizers import Adam
 from keras.models import clone_model
 from collections import namedtuple
 from rltoolkit.errors import EarlyStopError
-from rltoolkit.backend import TaskScheduler
+from rltoolkit.backend import MulticoreBackend
 from rltoolkit.utils import format_time, test_network, truncate_weights
 
 class Evo:
@@ -61,7 +61,7 @@ class Evo:
     self.nn = nn
     self.envs = [env]
     self.networks = [nn]
-    self.backend = TaskScheduler(num_cores=cores)
+    self.backend = MulticoreBackend(cores=cores)
     population = [truncate_weights(nn.get_weights(), n_decimals=3)]
 
     for i in range(1, self.pop_size):
@@ -162,7 +162,7 @@ class Evo:
     fitnesses = []
     Fitness = namedtuple('fitness', 'id reward')
     _, seed = seeding.np_random()
-    num_cores = self.backend.num_cores
+    num_cores = self.backend.cores
 
     if num_cores > 1:
       for i, weights in enumerate(population):
@@ -170,9 +170,11 @@ class Evo:
         env = self.envs[i%num_cores]
         nn  = self.networks[i%num_cores]
         nn.set_weights(weights)
-        self.backend.run(test_network, nn, env, episodes, seed=seed)
+        self.backend.run(i, test_network, nn, env, episodes, seed=seed)
       
       res = self.backend.join()
+      res.sort(key= lambda val: val['pid'])
+      res = [val['result'] for val in res]
       for i, avg in enumerate(res):
         fitnesses.append(Fitness(i, avg))
     else:

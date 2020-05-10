@@ -1,12 +1,13 @@
 import numpy as np
 class EnvManager():
-  """
-    Manages action predictions for networks interfacing with an environment.
-    Implicitly determines if a Time distributed observation is necessary, 
-    and evaluates model predictions into interpretable actions.
-  """
-
   def __init__(self, nn, env):
+    
+    """
+      Manages action predictions for networks interfacing with an environment.
+      Implicitly determines if a Time distributed observation is necessary, 
+      and evaluates model predictions into interpretable actions.
+    """
+
     self.nn = nn
     self.env = env
     self.discrete = hasattr(env.action_space, 'n') #environment is discrete
@@ -88,4 +89,40 @@ class EnvManager():
       action = qvals
     
     return action
+
+
+def subprocess_wrapper(func, res, pid, *args, **kwargs):
+  """
+    Wraps `func` as a multiprocessing.Process ready 
+    subprocess by evaluating func(*args, **kwargs) then 
+    enqueues the results in `res`. Uses pid to disinguish the process id.
+
+    # Arguements
+    func: a function to be executed in a subprocess.
+    res: a multiprocessing.Manager().Queue() to enqueue data into upon completion.
+    pid: a process id that is used to distinguish processes from each other 
+      when running in parallel.
+    args: arguments for `func`.
+    kwargs: keyword arguments for `func`.
+
+    #Example Use
+
+    def example_func(a, b=3):
+      return a+b
     
+    >>>queue = Manager().Queue()
+    >>>args = (example_func, queue, 0) #args for subprocess wrapper 
+    >>>args += (2,) #args for `example_func` (comma is needed here)
+    >>>kwargs = {'b': 5}
+    >>>p = Process(target=subprocess_wrapper, args=args, kwargs=kwargs)
+    >>>p.start()
+    >>>p.join()
+    >>>queue.get() #returns (2+5) = 7
+  """
+  retval = func(*args, **kwargs)
+
+  #store returned value
+  res.put({
+    'pid': pid,
+    'result': retval,
+  }) 

@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
   #========== Train network =====================================================
   method = Evo(pop_size=20, elites=4)
-  nn = method.train(model, env, generations=25, episodes=10, callbacks=[graph, ckpt], goal=200)
+  nn = method.train(model, env, generations=25, episodes=10, callbacks=[graph, ckpt], goal=200, cores=4)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']

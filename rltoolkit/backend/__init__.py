@@ -1,1 +1,1 @@
-from .backend import TaskScheduler
+from .backend import DistributedBackend, MulticoreBackend
