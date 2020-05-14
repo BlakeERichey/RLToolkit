@@ -7,7 +7,7 @@ from keras.optimizers import Adam
 from keras.models import clone_model
 from collections import namedtuple
 from rltoolkit.errors import EarlyStopError
-from rltoolkit.backend import MulticoreBackend
+from rltoolkit.backend import MulticoreBackend, DistributedBackend
 from rltoolkit.utils import format_time, test_network, truncate_weights
 
 class Evo:
@@ -39,7 +39,7 @@ class Evo:
     self.pop_size = pop_size
   
   def train(self, nn, env, generations=1, goal=None, episodes=1, verbose=1, 
-            callbacks=[], cores=1):
+            callbacks=[], backend=None):
     """
       Trains using NeuroEvolutionary RL method.
 
@@ -52,27 +52,22 @@ class Evo:
         is reached.
       verbose: Int. Reports results of training after this many generations.
       callbacks:  list of functions to call upon completion of a generation.
-      cores: Int. How many cores to run environment simulation on. 
+      backend: If no backend is provided, the training will be done utilizing 
+        cores as appropriate for model predictions. Providing a backend allows 
+        specific control of how many cores and computers are used. Look at 
+        rltoolkit.backend for details.
     """
-    assert isinstance(cores, int) and cores > 0, "Cores must be a positive integer."
 
     print('Creating Population of Size: %s...' %(self.pop_size), end='')
     
     self.nn = nn
-    self.envs = [env]
-    self.networks = [nn]
-    self.backend = MulticoreBackend(cores=cores)
+    self.env = env
+    self.backend = backend
     population = [truncate_weights(nn.get_weights(), n_decimals=3)]
 
     for i in range(1, self.pop_size):
       nn = clone_model(nn)
       population.append(truncate_weights(nn.get_weights(), n_decimals=3))
-
-      #create taskscheduler dependencies
-      if len(self.envs) < cores:
-        self.networks.append(nn)
-        self.envs.append(deepcopy(env))
-        self.networks[i].compile(optimizer=Adam(), loss='mse')
     
     print('Done.')
     start_time = datetime.now()
@@ -162,17 +157,24 @@ class Evo:
     fitnesses = []
     Fitness = namedtuple('fitness', 'id reward')
     _, seed = seeding.np_random()
-    num_cores = self.backend.cores
 
-    if num_cores > 1:
+    if self.backend is not None:
+
+      #start queueing tasks
       for i, weights in enumerate(population):
         
-        env = self.envs[i%num_cores]
-        nn  = self.networks[i%num_cores]
+        nn  = self.nn
+        env = self.env
         nn.set_weights(weights)
         self.backend.run(i, test_network, nn, env, episodes, seed=seed)
       
-      res = self.backend.join()
+      #Get results
+      if isinstance(self.backend, MulticoreBackend):
+        res = self.backend.join()
+      elif isinstance(self.backend, DistributedBackend):
+        res = self.backend.get_results(self.pop_size)
+
+      #put results into order they were called, not order completed  
       res.sort(key= lambda val: val['pid'])
       res = [val['result'] for val in res]
       for i, avg in enumerate(res):
