@@ -14,7 +14,7 @@ logging.disable(logging.WARNING)
 #Import predefined context for client spawning
 import keras
 import rltoolkit
-import tensorflow
+import tensorflow as tf
 
 
 #========== MANAGERS ===========================================================
