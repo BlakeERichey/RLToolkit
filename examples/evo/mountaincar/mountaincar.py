@@ -1,6 +1,14 @@
+#Mute subprocesses
+import os
 import sys
-import gym
+import warnings
+warnings.filterwarnings("ignore")
+stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
 import keras
+sys.stderr = stderr
+
+import gym
 from keras.models import load_model
 from rltoolkit.methods import Evo
 from rltoolkit.agents import LSTM_ANN, ANN
