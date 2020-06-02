@@ -16,6 +16,13 @@ import keras
 import rltoolkit
 import tensorflow as tf
 
+if os.name != 'nt':
+  try:
+    multiprocessing.set_start_method('forkserver')
+  except Exception as e:
+    if str(e) != 'context has already been set':
+      raise e
+
 
 #========== MANAGERS ===========================================================
 
