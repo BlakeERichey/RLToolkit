@@ -1,8 +1,12 @@
 import os
+import types
 import queue
 import socket
 import logging
 import multiprocessing
+from   copy                     import deepcopy
+from   keras.models             import clone_model
+from   rltoolkit.utils          import test_network
 from   rltoolkit.wrappers       import subprocess_wrapper
 from   multiprocessing          import Queue, Process, Manager
 from   multiprocessing.managers import SyncManager
@@ -39,12 +43,14 @@ class ParallelManager(SyncManager):
 
 class DistributedBackend:
 
-  def __init__(self, server_ip='127.0.0.1', port=50000, authkey=b'rltoolkit',
-              use_gpu=False, require_gpu=False):
+  def __init__(self, network_generator, server_ip='127.0.0.1', port=50000, 
+              authkey=b'rltoolkit', use_gpu=False, require_gpu=False):
     """
       Initializes a Distributed & Multicore Backend Remote Manager.
 
       # Arguments
+      network_generator: function. Function that returns a Keras model. 
+        Used for client nodes to interpret 
       server_ip: String. IP address for Remote Server. Client machines must use 
         and be able to see this machine.
       port: Int. Port number to open for clients to interface with the manager.
@@ -56,9 +62,14 @@ class DistributedBackend:
         of an available GPU. Set to True if the Backend should wait for a GPU 
         to become available. Overrides passed in value of `use_gpu`. Sets to True.
     """
+    
+    assert type(network_generator) == types.FunctionType, \
+      'Expected function for network generator.'
+
     self.port      = port
     self.authkey   = authkey
     self.server_ip = server_ip
+    self.network_generator = network_generator
     
     # Start a shared manager server and access its queues
     self.manager = ParallelManager(address=(server_ip, port), authkey=authkey)
@@ -132,6 +143,26 @@ class DistributedBackend:
           results.put(val)
         
         i+=1
+  
+  def test_network(self, task_id, weights, env, episodes, seed, network=None):
+    """
+      Neural Network DistributedBackend.run() utility function. 
+
+      Wraps and enqueues environment testing so that network recreation 
+      happens on subcore and not main thread.
+
+      # Arguments
+      weights:  list of weights corresponding to Keras NN weights
+      env:      a Gym environment
+      episodes: How many episodes to test an environment.
+      seed:     Random seed to ensure consistency across tests
+      network:  No functionality, kept for identical argument structure to 
+        MulticoreBackend.test_network().
+    """
+    self.run(
+      task_id, backend_test_network, weights,      #model creation params
+      self.network_generator, env, episodes, seed  #test network params
+    )
 
   def run(self, task_id, func, *args, **kwargs):
     """
@@ -192,6 +223,25 @@ class MulticoreBackend():
     self.processes = []    #processes actively running
     self.results   = Queue() #results queue
     self.cores = cores
+  
+  def test_network(self, task_id, weights, env, episodes, seed, network):
+    """
+      Neural Network MulticoreBackend.run() utility function. 
+
+      Wraps and enqueues environment testing so that network recreation 
+      happens on subcore and not main thread.
+
+      # Arguments
+      weights:  list of weights corresponding to Keras NN weights
+      network:  a keras Neural network
+      env:      a Gym environment
+      episodes: How many episodes to test an environment.
+      seed:     Random seed to ensure consistency across tests
+    """
+    self.run(
+      task_id, backend_test_network, weights, #model creation params
+      network, env, episodes, seed            #test network params
+    )
 
   def run(self, task_id, func, *args, **kwargs):
     """
@@ -255,3 +305,28 @@ class MulticoreBackend():
         i+=1
     
     return results
+
+#========== UTILITIES ==========================================================
+def backend_test_network(weights, network, env, episodes, seed):
+  """
+    Wraps environment testing so that network recreation happens on subcore and 
+    not main thread. 
+
+    # Arguments
+    weights:  list of weights corresponding to Keras NN weights
+    network:  a keras Neural network
+    env:      a Gym environment
+    episodes: How many episodes to test an environment.
+    seed:     Random seed to ensure consistency across tests
+  """
+
+  env = deepcopy(env)
+  # print('Network is func:', type(network) == types.FunctionType, network)
+  if type(network) == types.FunctionType:
+    nn = network()
+  else:
+    nn  = clone_model(network)
+  nn.set_weights(weights)
+  avg = test_network(nn, env, episodes, seed=seed)
+  print('Avg:', avg)
+  return avg

@@ -3,7 +3,6 @@ import numpy as np
 from copy import deepcopy
 from datetime import datetime
 from gym.utils import seeding
-from keras.optimizers import Adam
 from keras.models import clone_model
 from collections import namedtuple
 from rltoolkit.errors import EarlyStopError
@@ -11,13 +10,10 @@ from rltoolkit.backend import MulticoreBackend, DistributedBackend
 from rltoolkit.utils import format_time, test_network, truncate_weights
 
 class Evo:
-  """
-    NeuroEvolutionary Strategy utilizing a fixed topology.
-  """
 
   def __init__(self, pop_size=None, elites=None):
     """
-      Initialized a NeuroEvolution RL method
+      NeuroEvolutionary Strategy utilizing a fixed topology.
 
       #Arguments 
       pop_size: Int. Quantity of neural networks to make. 
@@ -58,7 +54,7 @@ class Evo:
         rltoolkit.backend for details.
     """
 
-    print('Creating Population of Size: %s...' %(self.pop_size), end='')
+    print('Creating Population of Size: %s...' %(self.pop_size), end='', flush=True)
     
     self.nn = nn
     self.env = env
@@ -162,12 +158,13 @@ class Evo:
 
       #start queueing tasks
       for i, weights in enumerate(population):
-        
-        nn  = self.nn
-        env = self.env
-        nn.set_weights(weights)
-        self.backend.run(i, test_network, nn, env, episodes, seed=seed)
-      
+        #dont send network for DistributedBackend, recreate
+        self.backend.test_network(
+          i, weights,
+          self.env, episodes, seed,
+          (None, self.nn)[isinstance(self.backend, MulticoreBackend)], 
+        )
+
       #Get results
       if isinstance(self.backend, MulticoreBackend):
         res = self.backend.join()
@@ -200,8 +197,8 @@ class Evo:
       Performs genetic breeding of parent1 and parent2 to spawn a new individual.
 
       #Arguments
-      parent1: a numpy array defining a keras NN's weights.
-      parent2: a numpy array defining a keras NN's weights.
+      parent1: a multi-dimensional list defining a keras NN's weights.
+      parent2: a multi-dimensional list defining a keras NN's weights.
 
       #Returns
       new_weights to be set as a NN weights via NN.set_weights(new_weights).

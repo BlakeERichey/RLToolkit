@@ -1,12 +1,32 @@
+#====== Mute subprocesses =======
+import os
 import sys
-import gym
+import warnings
+warnings.filterwarnings("ignore")
+stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
 import keras
+sys.stderr = stderr
+#================================
+
+import gym
+import tensorflow as tf
 from keras.models import load_model
 from rltoolkit.methods import Evo
 from rltoolkit.agents import LSTM_ANN, ANN
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
 from rltoolkit.backend import MulticoreBackend, DistributedBackend
+
+filename = 'MountainCar'
+train_from_scratch = True
+
+def create_model():
+  env = gym.make(f'{filename}-v0')
+  # model = LSTM_ANN(env, n_timesteps=10, topology=[2,64,64,16])
+  # model = ANN(env, topology=[4,64,64,4])
+  model = ANN(env, topology=[256,256,256])
+  return model
 
 if __name__ == '__main__':
   server_info = ('127.0.0.1', 50000, b'password') #(ip, port, authkey)
@@ -15,18 +35,15 @@ if __name__ == '__main__':
   for i, arg in enumerate(args):
     if arg == '--server':
       print('Launching Server.')
-      DistributedBackend(*server_info).spawn_server()
+      DistributedBackend(create_model, *server_info).spawn_server()
 
     elif arg == '--client':
       cores = int(args[i+1])
       print('Spawning client using', cores, 'cores.')
-      DistributedBackend(*server_info).spawn_client(cores)
+      DistributedBackend(create_model, *server_info).spawn_client(cores)
 
     elif arg == '--driver':
       #========== Initialize Environment ============================================
-      filename = 'MountainCar'
-      train_from_scratch = True
-
       env = gym.make(f'{filename}-v0')
       try:
         print(env.unwrapped.get_action_meanings())
@@ -34,8 +51,7 @@ if __name__ == '__main__':
         pass
 
       #========== Build network =====================================================
-      # model = LSTM_ANN(env, n_timesteps=10, topology=[2,64,64,16])
-      model = ANN(env, topology=[4,64,64,4])
+      model = create_model()
 
       #Load pretrained model?
       if not train_from_scratch:
@@ -51,8 +67,8 @@ if __name__ == '__main__':
       graph = Graph()
       #Make a checkpoint to save best model during training
       ckpt = Checkpoint(f'{filename}.h5')
-      # backend = DistributedBackend(*server_info)
-      backend = MulticoreBackend(4)
+      backend = DistributedBackend(create_model, *server_info)
+      # backend = MulticoreBackend(4)
 
       #========== Train network =====================================================
       method = Evo(pop_size=50, elites=8)
