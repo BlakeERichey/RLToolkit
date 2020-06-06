@@ -13,9 +13,9 @@ from   rltoolkit.wrappers       import subprocess_wrapper
 from   multiprocessing          import Queue, Process, Manager
 from   multiprocessing.managers import SyncManager
 
-# #disable warnings in tensorflow subprocesses
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# logging.disable(logging.WARNING)
+#disable warnings in tensorflow subprocesses
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+logging.disable(logging.WARNING)
 
 #Import predefined context for client spawning
 import keras
@@ -359,7 +359,7 @@ class MulticoreBackend():
   
   def _time_limit_reached(self, task):
     dt = (datetime.datetime.now() - task['start_time']).total_seconds()
-    return (False, dt > self.timeout)[self.timeout is not None]
+    return dt > self.timeout if self.timeout is not None else False
 
 #========== UTILITIES ==========================================================
 def backend_test_network(weights, network, env, episodes, seed):
