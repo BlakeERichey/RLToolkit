@@ -1,8 +1,10 @@
 import os
+import time
 import types
 import queue
 import socket
 import logging
+import datetime
 import multiprocessing
 from   copy                     import deepcopy
 from   keras.models             import clone_model
@@ -11,9 +13,9 @@ from   rltoolkit.wrappers       import subprocess_wrapper
 from   multiprocessing          import Queue, Process, Manager
 from   multiprocessing.managers import SyncManager
 
-#disable warnings in tensorflow subprocesses
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-logging.disable(logging.WARNING)
+# #disable warnings in tensorflow subprocesses
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+# logging.disable(logging.WARNING)
 
 #Import predefined context for client spawning
 import keras
@@ -50,7 +52,7 @@ class DistributedBackend:
 
       # Arguments
       network_generator: function. Function that returns a Keras model. 
-        Used for client nodes to interpret 
+        Used for client nodes to interpret network architecture and graph context.
       server_ip: String. IP address for Remote Server. Client machines must use 
         and be able to see this machine.
       port: Int. Port number to open for clients to interface with the manager.
@@ -211,18 +213,20 @@ class DistributedBackend:
 
 class MulticoreBackend():
 
-  def __init__(self, cores=1):
+  def __init__(self, cores=1, timeout=None):
     """
       Initializes a MulticoreBackend with a configurable number of cores
       
       #Arguments
       cores: Int. Max number of cores to utilize.
+      timeout: Max time in seconds to permit a Process to run.
     """
     
-    self.queued    = []    #process that have yet to run
-    self.processes = []    #processes actively running
-    self.results   = Queue() #results queue
-    self.cores = cores
+    self.active   = 0       #number of active processes
+    self.tasks    = {}      #task_id: Task
+    self.cores    = cores   #max number of processes to spawn at one time
+    self.results  = Queue() #results queue
+    self.timeout  = timeout #max time for process
   
   def test_network(self, task_id, weights, env, episodes, seed, network):
     """
@@ -265,46 +269,89 @@ class MulticoreBackend():
     args = (func,self.results,task_id) + (args, (args,))[isinstance(args, int)]
 
     p = Process(target=subprocess_wrapper, args=args, kwargs=kwargs)
-    if len(self.processes) < self.cores:
-      self.processes.append(p)
+    if self.active < self.cores:
+      #Start processes
       p.start()
+      self.active+=1
+      task = {
+        'process':    p, 
+        'start_time': datetime.datetime.now(), 
+        'running':    True, 
+        'result:':    None
+      }
     else:
-      self.queued.append(p)
+      #Queue process
+      task = {
+        'process':    p, 
+        'start_time': None, 
+        'running':    False, 
+        'result':     None
+      }
+    
+    self.tasks[task_id] = task
 
-  def join(self,):
+  def join(self, clean=True): #####IMPROVE DOCUMENTATION FOR DOCSTRING#####
     """
       Syncronously awaits all subprocesses competion and returns 
       when this condition is met
+
+      clean: if True, function sorts results by pid then 
+        strips process ids from returned list
     """
 
-    results = []
+    done = {} #completed tasks
+    keys = list(self.tasks.keys()) #keys for queued tasks
+    while len(self.tasks):
 
-    while len(self.processes) or len(self.queued):
-      
       #check status of current processes
       i = 0
-      while i < len(self.processes):
-        process = self.processes[i]
+      while i < len(keys):
+        task_id = keys[i]
+        task    = self.tasks[task_id] #{process start_time running result}
+        process = task['process']
         
-        #terminate process, once done
-        if not process.is_alive():
-          process.join()
-          self.processes.pop(i)
-          i-=1 #back up an index, due to active.pop()
+        if task['running']:
+          #terminate process, if done or timeout reached
+          if not process.is_alive(): #Task completed normally
+            process.join()
 
-          #stage returned values into results
-          res = self.results.get()
-          results.append(res)
+            #Remove Task from queued/active
+            keys.pop(i)
+            self.active -= 1
+            task['running'] = False
+            done[task_id] = task
+            self.tasks.pop(task_id)
+            i-=1 #back up an index, due to keys.pop()
+          
+          elif self._time_limit_reached(task): #Task has taken too long, kill it
+            process.kill()
+            self.results.put({
+              'pid':    task_id,
+              'result': None,
+            })
 
-          #Start a queued process
-          if len(self.queued) and len(self.processes) < self.cores:
-            new_process = self.queued.pop(0)
-            self.processes.append(new_process)
-            new_process.start()
-        
+            #Remove Task from queued/active
+            keys.pop(i)
+            self.active -= 1
+            task['running'] = False
+            done[task_id] = task
+            self.tasks.pop(task_id)
+            i-=1 #back up an index, due to keys.pop()
+
+        elif self.active < self.cores: #Open core, spawn new process
+          process.start()
+          task['running'] = True
+          task['start_time'] = datetime.datetime.now()
+          self.active += 1
+
+          
         i+=1
-    
-    return results
+
+    return results_from_queue(self.results, done, clean)
+  
+  def _time_limit_reached(self, task):
+    dt = (datetime.datetime.now() - task['start_time']).total_seconds()
+    return (False, dt > self.timeout)[self.timeout is not None]
 
 #========== UTILITIES ==========================================================
 def backend_test_network(weights, network, env, episodes, seed):
@@ -320,13 +367,68 @@ def backend_test_network(weights, network, env, episodes, seed):
     seed:     Random seed to ensure consistency across tests
   """
 
-  env = deepcopy(env)
-  # print('Network is func:', type(network) == types.FunctionType, network)
-  if type(network) == types.FunctionType:
-    nn = network()
-  else:
-    nn  = clone_model(network)
-  nn.set_weights(weights)
-  avg = test_network(nn, env, episodes, seed=seed)
-  print('Avg:', avg)
+  try:
+    # time.sleep(15)
+    env = deepcopy(env)
+    # print('Network is func:', type(network) == types.FunctionType, network)
+    if type(network) == types.FunctionType: #Distributed create_model
+      nn = network()
+    else:
+      nn  = clone_model(network)
+    nn.set_weights(weights)
+    # foo = bar
+    avg = test_network(nn, env, episodes, seed=seed)
+    # print('Avg:', avg)
+  except:
+    avg = None
+    # print('Avg:', avg)
   return avg
+
+def results_from_queue(q, done, clean): #####IMPROVE DOCUMENTATION FOR DOCSTRING#####
+    """
+      Helper function for getting results from self.results Queue().
+      Offers cleaning utility to control returned format.
+
+      #Arguments
+      q: results queue
+      done: completed Tasks dictionary
+      clean: If True returns list of rewards sorted by task_id
+    """
+    #Stage all results
+    i = 0
+    results = []
+    min_score = None #Determine value to replace for timed out tasks or errors
+    n_tasks = len(done.keys()) #how many results to pull from queue
+    while i < n_tasks:
+      res = q.get()
+      
+      #Find minimum score of all tasks, for processes that failed
+      result = res['result']
+      if min_score is None: #First process could have failed, thus i==0 is wrong
+        min_score = result
+      else:
+        if result is not None:
+          min_score = min(min_score, result)
+
+      results.append(res)
+      task_id = int(res['pid'])
+      done[task_id]['result'] = result
+
+      i+=1
+    
+    #Resolve processes that threw errors
+    if clean:
+      results = []
+      sorted_tasks = sorted(done.items(), key= lambda item: item[0])
+      for _, task in sorted_tasks:
+        result = task['result']
+        if result is None:
+          result = min_score
+        
+        results.append(result)
+    else:
+      for item in results:
+        if item['result'] is None:
+          item['result'] = min_score
+    
+    return results

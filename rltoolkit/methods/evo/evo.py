@@ -169,11 +169,9 @@ class Evo:
       if isinstance(self.backend, MulticoreBackend):
         res = self.backend.join()
       elif isinstance(self.backend, DistributedBackend):
-        res = self.backend.get_results(self.pop_size)
+        res = self.backend.get_results(num_results=self.pop_size)
 
       #put results into order they were called, not order completed  
-      res.sort(key= lambda val: val['pid'])
-      res = [val['result'] for val in res]
       for i, avg in enumerate(res):
         fitnesses.append(Fitness(i, avg))
     else:
