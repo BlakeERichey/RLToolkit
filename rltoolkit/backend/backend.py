@@ -68,6 +68,7 @@ class DistributedBackend:
     assert type(network_generator) == types.FunctionType, \
       'Expected function for network generator.'
 
+    self.tasks     = {}      #task_id: Task, intended for tracking crashed processes
     self.port      = port
     self.authkey   = authkey
     self.server_ip = server_ip
@@ -193,7 +194,7 @@ class DistributedBackend:
 
     processes.put(params)
   
-  def get_results(self, num_results=1):
+  def get_results(self, num_results=1, clean=True):
     """
       Gets a number of results from the results queue. Defaults to 1 result
       Hangs current thread until this quantity has been retreived.
@@ -203,11 +204,18 @@ class DistributedBackend:
     
     if num_results == 1:
       result = manager.get_results().get()
+      if clean:
+        result = result['result']
     else:
       result = []
       for _ in range(num_results):
         res = manager.get_results().get()
         result.append(res)
+
+      if clean:
+        result.sort(key= lambda val: val['pid'])
+        result = [val['result'] for val in result]
+
 
     return result
 
