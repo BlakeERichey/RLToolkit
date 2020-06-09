@@ -416,7 +416,10 @@ def results_from_queue(q, done, clean): #####IMPROVE DOCUMENTATION FOR DOCSTRING
         min_score = result
       else:
         if result is not None:
-          min_score = min(min_score, result)
+          try:
+            min_score = min(min_score, result)
+          except TypeError:
+            pass
 
       results.append(res)
       task_id = int(res['pid'])
@@ -434,9 +437,5 @@ def results_from_queue(q, done, clean): #####IMPROVE DOCUMENTATION FOR DOCSTRING
           result = min_score
         
         results.append(result)
-    else:
-      for item in results:
-        if item['result'] is None:
-          item['result'] = min_score
     
     return results
