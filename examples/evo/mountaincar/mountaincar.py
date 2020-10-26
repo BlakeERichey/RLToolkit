@@ -29,7 +29,7 @@ def create_model():
   return model
 
 if __name__ == '__main__':
-  server_info = ('127.0.0.1', 50000, b'password') #(ip, port, authkey)
+  server_info = ('10.235.1.254', 50000, b'password') #(ip, port, authkey)
 
   args = sys.argv[1:]
   for i, arg in enumerate(args):
@@ -67,8 +67,8 @@ if __name__ == '__main__':
       graph = Graph()
       #Make a checkpoint to save best model during training
       ckpt = Checkpoint(f'{filename}.h5')
-      backend = DistributedBackend(create_model, *server_info)
-      # backend = MulticoreBackend(4)
+      # backend = DistributedBackend(create_model, *server_info)
+      backend = MulticoreBackend(4)
 
       #========== Train network =====================================================
       method = Evo(pop_size=50, elites=8)
