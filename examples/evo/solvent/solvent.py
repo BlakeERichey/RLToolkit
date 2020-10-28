@@ -30,39 +30,39 @@ def create_model():
 if __name__ == '__main__':
   #========== Initialize Environment ============================================
   env = gym.make(f'{filename}-v0')
-  try:
-    print(env.unwrapped.get_action_meanings())
-  except:
-    pass
+  # try:
+  #   print(env.unwrapped.get_action_meanings())
+  # except:
+  #   pass
 
-  #========== Build network =====================================================
-  model = create_model()
+  # #========== Build network =====================================================
+  # model = create_model()
 
-  #Load pretrained model?
-  if not train_from_scratch:
-    try:
-      model = load_model(f'{filename}.h5')
-    except:
-      pass
+  # #Load pretrained model?
+  # if not train_from_scratch:
+  #   try:
+  #     model = load_model(f'{filename}.h5')
+  #   except:
+  #     pass
 
-  model.summary()
+  # model.summary()
 
-  #========== Configure Callbacks ===============================================
-  #Enable graphing of rewards
-  graph = Graph()
-  #Make a checkpoint to save best model during training
-  ckpt = Checkpoint(f'{filename}.h5')
-  backend = None#MulticoreBackend(4)
+  # #========== Configure Callbacks ===============================================
+  # #Enable graphing of rewards
+  # graph = Graph()
+  # #Make a checkpoint to save best model during training
+  # ckpt = Checkpoint(f'{filename}.h5')
+  # backend = None#MulticoreBackend(4)
 
-  #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=8)
-  nn = method.train(model, env, generations=250, episodes=1, callbacks=[graph, ckpt], backend=backend)
+  # #========== Train network =====================================================
+  # method = Evo(pop_size=50, elites=8)
+  # nn = method.train(model, env, generations=250, episodes=1, callbacks=[graph, ckpt], backend=backend)
 
-  #========== Save and show rewards =============================================
-  nn.save('nn.h5')
-  version = ['min', 'max', 'avg']
-  graph.show(version=version)
-  graph.save(f'{filename}.png', version=version)
+  # #========== Save and show rewards =============================================
+  # nn.save('nn.h5')
+  # version = ['min', 'max', 'avg']
+  # graph.show(version=version)
+  # graph.save(f'{filename}.png', version=version)
 
   #========== Evaluate Results ==================================================
   #Load best saved model
