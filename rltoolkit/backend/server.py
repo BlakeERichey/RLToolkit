@@ -10,4 +10,8 @@ if __name__ == '__main__':
   manager = ParallelManager(address=('127.0.0.1', 50000), authkey=b'123')
   manager.start()
   print('Serving...')
-  time.sleep(100)
+  for i in range(10):
+    print('tasks:', manager.queued_tasks)
+    manager.get_results()
+    time.sleep(5)
+  

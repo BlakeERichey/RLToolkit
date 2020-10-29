@@ -1,12 +1,13 @@
 import time
 import datetime
 import hashlib
+import asyncio
 import multiprocessing
 from   multiprocessing          import Queue, Process, Manager
 from   multiprocessing.managers import SyncManager, BaseManager
 
 def calc_big_number(number):
-  total=1
+  total=0
   for i in range(1, number+1):
     time.sleep(i)
     total+=i
@@ -14,11 +15,13 @@ def calc_big_number(number):
   return total
 
 
-class ParallelManager(BaseManager):  
+class ParallelManager(SyncManager):  
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
     self.results_queue = Manager().Queue()
     self.processes_queue = Manager().Queue()
+
+    self.timeout = 500 #max_time for task to run, in seconds
 
     self.current_hash    = 0
     self.hash_table      = {} #{hash: task_id}
@@ -28,6 +31,7 @@ class ParallelManager(BaseManager):
     self.tasks = {} #{task_id hash: Task}... 
     # Task SCHEMA:
     # task = {
+    #   'hash':       hash
     #   'func':       func,
     #   'args':       args,
     #   'kwargs':     kwargs,
@@ -36,13 +40,11 @@ class ParallelManager(BaseManager):
     #   'result:':    None
     # }
     
-    self.scheduler = TaskScheduler()
     self.register('schedule',    callable=self.schedule)
     self.register('monitor',     callable=self.monitor)
     self.register('request',     callable=self.request)
     self.register('respond',     callable=self.respond)
     self.register('get_results', callable=self.get_results)
-    self.register('scheduler', callable=self.scheduler)
 
   def _get_new_hash(self):
     """
@@ -56,7 +58,12 @@ class ParallelManager(BaseManager):
     return new_hash
 
   def schedule(self, task_id, func, *args, **kwargs):
+    task_hash = str(self._get_new_hash())
+    self.queued_tasks.add(task_hash)
+    self.hash_table[task_hash] = task_id
+
     task = {
+      'hash':       task_hash,
       'func':       func,
       'args':       args,
       'kwargs':     kwargs,
@@ -64,12 +71,11 @@ class ParallelManager(BaseManager):
       'running':    False, 
       'result:':    None
     }
-    task_hash = str(self._get_new_hash())
-    self.queued_tasks.add(task_hash)
-    self.hash_table[task_hash] = task_id
     self.tasks[task_hash] = task
+
     print('Task', task_id, 'queued under', task_hash)
-    return True
+    print(self.queued_tasks)
+    return task_hash
 
   def monitor(self,):
     """
@@ -81,40 +87,64 @@ class ParallelManager(BaseManager):
     """
       Inteface for clients to request a task
     """
-    task_hash = self.queued_tasks.pop()
-    self.active_tasks.add(task_hash)
-    task = self.tasks[task_hash]
-    modInfo = {
-      'start_time': datetime.datetime.now(), 
-      'running':    True, 
-    }
-    task.update(modInfo)
-    print(self.tasks[task_hash])
-    return task
+    packet = None
+    try:
+      task_hash = self.queued_tasks.pop()
+      self.active_tasks.add(task_hash)
+      task = self.tasks[task_hash]
+      modInfo = {
+        'start_time': datetime.datetime.now(), 
+        'running':    True, 
+      }
+      task.update(modInfo)
+      packet = Packet(task)
+    except:
+      pass
 
-  def respond(self, task_id, retval, info):
+    return packet
+
+  def respond(self, task_hash, retval, info=None):
     """
       Interface for clients to submit answers to tasks
     """
-    print(self.scheduler.asking)
-    pass
+    end_time = datetime.datetime.now()
+    task = self.tasks[task_hash]
+    if (end_time - task['start_time']).total_seconds() <= self.timeout:
+      mod_info = {
+        'result':  retval,
+        'running': False
+      }
+    print('Result', task_hash, retval)
 
-  def get_results(self,):
+    self.active_tasks.remove(task_hash)
+    self.completed_tasks.add(task_hash)
+
+  def get_results(self, task_hashes=[], hash_keys=False):
     """
       Interface for driver to request completed tasks' results
+      hash_keys: returned dictionary should use hashes as keys. 
+      Defaults to using original task_id
     """
+    print('In results:', self.queued_tasks)
     pass
+    # while True:
+    #   pass
+    # results = {}
+    # for task_hash in task_hashes:
+    #   task = self.tasks[task_hash]
+    #   if hash_keys:
+    #     _id = task_hash
+    #   else:
+    #     _id = task.get('task_id')
+      
+    #   results[_id] = task.get('result')
+      
 
-class TaskScheduler:
 
-  def __init__(self,):
-    self.asking = 'what is your question'
+class Packet:
+
+  def __init__(self,data):
+    self.data = data    
   
-  def get_question(self,):
-    return self.asking
-
-  def get_answer(self,):
-    return True
-
-  def change_question(self,):
-    self.asking = 'This is the new question'
+  def get_data(self,):
+    return self.data

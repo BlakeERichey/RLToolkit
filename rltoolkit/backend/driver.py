@@ -10,5 +10,6 @@ if __name__ == '__main__':
   manager = ParallelManager(address=('127.0.0.1', 50000), authkey=b'123')
   manager.connect()
   print('Connected.')
-  manager.schedule(32, calc_big_number, 3)
-  print('Scheduling task.')
+  task_hash = manager.schedule(32, calc_big_number, 3)
+  print('Scheduling task.', task_hash, type(task_hash))
+  manager.shutdown()
