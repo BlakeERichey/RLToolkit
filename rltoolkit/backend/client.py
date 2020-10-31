@@ -9,6 +9,6 @@ from backend import DistributedBackend
 
 if __name__ == '__main__':
   backend = DistributedBackend('127.0.0.1', 50000, authkey=b'123')
-  backend.spawn_client()
+  backend.spawn_client(2)
   print('Monitoring...')
   

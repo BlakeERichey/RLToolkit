@@ -9,11 +9,14 @@ from backend import DistributedBackend
 
 if __name__ == '__main__':
   backend = DistributedBackend('127.0.0.1', 50000, authkey=b'123')
+  # backend.manager.connect()
+  # print(backend.manager.get_active_tasks().unpack())
+  # print(backend.manager.kill_tasks(['1','2','3','4','5','6']))
   hashes = []
   for i in range(6):
-    res = backend.run(0, calc_big_number, i)
+    res = backend.run(calc_big_number, i, timeout=8)
     print('Task Hash:', res)
     hashes.append(res)
-  
-  backend.get_results(hashes, hash_keys=False) 
+  print('requesting:', hashes)
+  backend.get_results(hashes) 
   
