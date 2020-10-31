@@ -32,21 +32,226 @@ if os.name != 'nt':
 
 #========== MANAGERS ===========================================================
 
-class ParallelManager(SyncManager):  
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    results_queue = Manager().Queue()
-    processes_queue = Manager().Queue()
+import time
+import datetime
+import hashlib
+import asyncio
+import multiprocessing
+from   multiprocessing          import Queue, Process, Manager
+from   multiprocessing.managers import SyncManager, BaseManager
 
-    self.register('get_results',   callable=lambda:results_queue)
-    self.register('get_processes', callable=lambda:processes_queue)
+class ParallelManager(SyncManager):  
+  def __init__(self, *args, timeout=None, task_limit=None, **kwargs):
+    """
+      task_limit: max number of tasks to remember and be able to queue
+    """
+    super().__init__(*args, **kwargs)
+
+    self.timeout = timeout #max_time for task to run, in seconds
+    self.task_limit = task_limit
+
+    self.current_hash    = 1
+    self.hash_table      = {} #{hash: task_id}
+    self.queued_tasks    = set() #hashes
+    self.active_tasks    = set() #hashes
+    self.completed_tasks = set() #hashes
+    self.tasks = {} #{task_id hash: Task}... 
+    # Task SCHEMA:
+    # task = {
+    #   'hash':       hash
+    #   'func':       func,
+    #   'args':       args,
+    #   'kwargs':     kwargs,
+    #   'start_time': None, 
+    #   'running':    False, 
+    #   'result:':    None
+    #   'timeout:':   None
+    # }
+    
+    self.register('schedule',            callable=self.schedule)
+    self.register('monitor',             callable=self.monitor)
+    self.register('request',             callable=self.request)
+    self.register('respond',             callable=self.respond)
+    self.register('get_results',         callable=self.get_results)
+    self.register('hash_mapping',        callable=self.hash_mapping)
+    self.register('get_active_tasks',    callable=self.get_active_tasks)
+    self.register('get_completed_tasks', callable=self.get_completed_tasks)
+
+  def _get_new_hash(self):
+    """
+      Returns a new hash.
+      Used for identifying tasks with the same task_id
+    """
+    # byte_string = bytes(str(self.current_hash), encoding='utf-8')
+    # new_hash = hashlib.md5(byte_string).hexdigest()
+    new_hash = self.current_hash
+    self.current_hash += 1
+    return new_hash
+
+  def schedule(self, task_id, func, *args, timeout=None, **kwargs):
+    """
+      Place a task into the task queue and return a task hash
+    """
+    packet = Packet(None)
+    if len(self.tasks) < self.task_limit:
+      task_hash = str(self._get_new_hash())
+      self.queued_tasks.add(task_hash)
+      self.hash_table[task_hash] = task_id
+
+      task = {
+        'hash':       task_hash,
+        'func':       func,
+        'args':       args,
+        'kwargs':     kwargs,
+        'start_time': None, 
+        'running':    False, 
+        'result:':    None,
+        'timeout:':   timeout or self.timeout
+      }
+      self.tasks[task_hash] = task
+
+      print('Task', task_id, 'queued under', task_hash)
+      packet = Packet(task_hash)
+    
+    return packet
+
+  def monitor(self,):
+    """
+      Interface for client to monitor the server for active tasks
+    """
+    return Packet(len(self.queued_tasks) > 0)
+  
+  def request(self,):
+    """
+      Inteface for clients to request a task
+    """
+    packet = Packet(None)
+    try:
+      task_hash = self.queued_tasks.pop() #if no tasks available, throws err
+      self.active_tasks.add(task_hash)
+      task = self.tasks[task_hash]
+      modInfo = {
+        'start_time': datetime.datetime.now(), 
+        'running':    True, 
+      }
+      task.update(modInfo)
+      packet = Packet(task)
+    except:
+      pass
+
+    return packet
+
+  def respond(self, task_hash, retval, info=None):
+    """
+      Interface for clients to submit answers to tasks
+    """
+    if task_hash in self.active_tasks:
+      task = self.tasks.get(task_hash)
+      end_time = datetime.datetime.now()
+      duration = (end_time - task['start_time']).total_seconds()
+      max_duration = task.get('timeout') or self.timeout
+      if max_duration is None or duration <= max_duration:
+        mod_info = {
+          'result':  retval,
+          'running': False
+        }
+        task.update(mod_info)
+        print('Result', task_hash, retval)
+        self.active_tasks.remove(task_hash)
+        self.completed_tasks.add(task_hash)
+  
+  def kill_tasks(self, task_hashes):
+    """
+      Terminates an active task and closes manager to listening for a response.
+    """
+    for task_hash in task_hashes:
+      task = self.active_tasks.get(task_hash)
+      if task:
+        task['running'] = False
+        self.active_tasks.remove(task_hash)
+        self.completed_tasks.add(task_hash)
+
+  def get_active_tasks(self,):
+    """
+      Returns all active tasks' hashes, starting times, and max duration
+    """
+    active_tasks = self.active_tasks
+    partial_active_tasks_dict = {} #active task dict with partial keys, value pairs
+    for task_hask in active_tasks:
+      task = self.active_tasks[task_hask]
+      sub_dict = { #exposed values (others would constitute significant data)
+        'timeout':    task.get('timeout')
+        'start_time': task.get('start_time')
+      }
+      partial_active_tasks_dict[task_hask] = sub_dict
+
+    return Packet(partial_active_tasks_dict)
+  
+  def get_completed_tasks(self,):
+    """
+      Returns hashes of completed tasks
+    """
+    return Packet(self.completed_tasks)
+  
+  def clear_task(self, task_hash):
+    """
+      Removes all traces of a task being present on the server.
+    """
+
+    for collection in [self.queued_tasks, self.active_tasks, self.completed_tasks]:
+      if task_hash in collection:
+        collection.remove(task_hash)
+    
+    self.tasks.pop(task_hash, None)
+    self.hash_table.pop(task_hash, None)
+
+  def get_results(self, task_hashes=[], hash_keys=True, clear=True):
+    """
+      Interface for driver to request completed tasks' results
+      hash_keys: returned dictionary should use hashes as keys. 
+      Defaults to using original task_id
+
+      clear: Remove hash after returning values
+    """
+    results = {}
+    for task_hash in task_hashes:
+      task = self.tasks[task_hash]
+      print('task:', task)
+      if hash_keys:
+        _id = task_hash
+      else:
+        _id = self.hash_table[task_hash]
+      
+      results[_id] = task.get('result')
+      if clear:
+        self.clear_task(task_hash)
+
+    print('Returning:', results)
+    return Packet(results)
+
+  def hash_mapping(self, task_hashes=[]):
+    """
+      Returns the task_ids that correspond to the task_hashes
+    """
+    mapping = [self.hash_table[task_hash] for task_hash in task_hashes]
+
+    return Packet(mapping)
+
+
+class Packet:
+
+  def __init__(self,data):
+    self.data = data    
+  
+  def unpack(self,):
+    return self.data
 
 #========== BACKENDS ===========================================================
 
 class DistributedBackend:
 
-  def __init__(self, network_generator, server_ip='127.0.0.1', port=50000, 
-              authkey=b'rltoolkit', use_gpu=False, require_gpu=False):
+  def __init__(self, server_ip='127.0.0.1', port=50000, authkey=b'rltoolkit', 
+              network_generator=None, use_gpu=False, require_gpu=False):
     """
       Initializes a Distributed & Multicore Backend Remote Manager.
 
@@ -65,8 +270,9 @@ class DistributedBackend:
         to become available. Overrides passed in value of `use_gpu`. Sets to True.
     """
     
-    assert type(network_generator) == types.FunctionType, \
-      'Expected function for network generator.'
+    if network_generator is not None:
+      assert type(network_generator) == types.FunctionType, \
+        'Expected function for network generator.'
 
     self.tasks     = {}      #task_id: Task, intended for tracking crashed processes
     self.port      = port
@@ -84,11 +290,36 @@ class DistributedBackend:
       Should be called in a subprocess.
     """
     manager = self.manager
+    manager.start()
+    
 
-    server = manager.get_server()
+    # server = manager.get_server()
     ip = socket.gethostbyname(socket.gethostname())
     print(f'Server started. Port {manager.address[1]}. Local IP: {ip}')
-    server.serve_forever()
+  
+  def _monitor_active_tasks(self,):
+    """
+      Run on server. Monitors active tasks to ensure they complete within 
+      timeout limit. Hangs the active thread.
+    """
+
+    manager=self.manager
+    manager.connect()
+
+    while True:
+      time.sleep(1)
+      tasks_to_kill = set()
+      active_tasks = manager.get_active_tasks().unpack()
+      for task_hash, task in active_tasks.items():
+        start_time   = task.get('start_time')
+        max_duration = task.get('timeout')
+        duration = (datetime.datetime.now() - start_time).total_seconds()
+
+        if duration > max_duration:
+          tasks_to_kill.add(task_hash)
+      
+      if len(tasks_to_kill):
+        manager.kill_tasks(tasks_to_kill)
 
   def spawn_client(self, cores=1):
     """
@@ -101,51 +332,26 @@ class DistributedBackend:
     manager = self.manager
     manager.connect()
     
-    results   = manager.get_results()
-    processes = manager.get_processes()
-    print('Client Running.')
-    print('Utilizing', cores, 'cores.')
-    print('Current Process:', processes.qsize())
-    print('Current Results:', results.qsize())
-
-    active = []
-    retvals = Queue()
+    print('Connected.', manager.address)
+    active=False
     while True:
-      #Initiate additional processes up to core limit
-      if len(active) < cores:
-        #If more processes are available
-        try:
-          params  = processes.get_nowait()
-        except queue.Empty as e:
-          params = None
+      time.sleep(1)
+      if active is False:
+        active = manager.monitor().unpack()
+      else:
+        packet = manager.request()
+        data = packet.unpack()
+        if data is not None:
+          print('Task received...', end='', flush=True)
+          tash_hash = data['hash']
+          func      = data['func']
+          args      = data['args']
+          kwargs    = data['kwargs']
+          retval    = func(*args, **kwargs)
         
-        if params:
-          func    = params.get('func')
-          task_id = params.get('task_id')
-          args    = params.get('args', ())
-          kwargs  = params.get('kwargs', {})
-
-          args = (func,retvals,task_id) + args
-          print('Spawning new Process:', task_id)
-
-          p = Process(target=subprocess_wrapper, args=args, kwargs=kwargs)
-          active.append(p)
-          p.start()
-      
-      #pop() completed processes, continue checking remaining processes
-      i = 0
-      while i < len(active):
-        process = active[i]
-        if not process.is_alive():
-          #terminate process, once done
-          process.join()
-          active.pop(i)
-          i-=1 #back up an index, due to active.pop()
-
-          val = retvals.get()
-          results.put(val)
-        
-        i+=1
+          manager.respond(tash_hash, retval)
+          active='False'
+          print('Complete.\nResult:', retval)
   
   def test_network(self, task_id, weights, env, episodes, seed, network=None):
     """
@@ -182,25 +388,32 @@ class DistributedBackend:
     """
     manager = self.manager
     manager.connect()
-    
-    processes = manager.get_processes()
-    
-    params = {
-      'func': func,
-      'args': args,
-      'kwargs': kwargs,
-      'task_id': task_id,
-    }
-
-    processes.put(params)
+    packet = manager.schedule(task_id, func, *args, **kwargs)
+    task_hash = packet.unpack()
+    return task_hash
   
-  def get_results(self, num_results=1, clean=True):
+  def get_results(self, task_hashes=[], clean=True, hash_keys=True):
     """
       Gets a number of results from the results queue. Defaults to 1 result
       Hangs current thread until this quantity has been retreived.
     """
     manager = self.manager
     manager.connect()
+
+    #When all the requested tasks are completed
+    task_hashes = set(task_hashes)
+    request_results = False #request results from server?
+    while not request_results:
+      time.sleep(1)
+      completed_tasks = manager.get_completed_tasks().unpack()
+      request_results = task_hashes.difference(completed_tasks) == set()
+      print(task_hashes)
+      print(completed_tasks)
+      print(request_results)
+    
+    print('tasks complete')
+    results = manager.get_results(task_hashes, hash_keys=hash_keys).unpack()
+    print('Received Results', results)
     
     if num_results == 1:
       result = manager.get_results().get()
