@@ -13,8 +13,8 @@ if __name__ == '__main__':
   # print(backend.manager.get_active_tasks().unpack())
   # print(backend.manager.kill_tasks(['1','2','3','4','5','6']))
   hashes = []
-  for i in range(6):
-    res = backend.run(calc_big_number, i, timeout=8)
+  for i in range(10):
+    res = backend.run(calc_big_number, i, timeout=14)
     print('Task Hash:', res)
     hashes.append(res)
   print('requesting:', hashes)

@@ -32,14 +32,6 @@ if os.name != 'nt':
 
 #========== MANAGERS ===========================================================
 
-import time
-import datetime
-import hashlib
-import asyncio
-import multiprocessing
-from   multiprocessing          import Queue, Process, Manager
-from   multiprocessing.managers import SyncManager, BaseManager
-
 class ParallelManager(SyncManager):  
   def __init__(self, *args, timeout=None, task_limit=None, **kwargs):
     """
@@ -242,11 +234,11 @@ class ParallelManager(SyncManager):
     
     self.tasks.pop(task_id, None)
 
-  def get_results(self, task_ids=[], clean=True, clear=True):
+  def get_results(self, task_ids=[], values_only=True, clear=True):
     """
       Interface for driver to request completed tasks' results
 
-      clean: Remove task_id before returning values. Returned answers are in 
+      values_only: Remove task_id before returning values. Returned answers are in 
         the order of the 'task_ids' parameter.
       clear: If True, removes task from server memory after returning results.
     """
@@ -259,13 +251,13 @@ class ParallelManager(SyncManager):
       
       res = task.get('result')
       results[_id] = res
-      if clean:
+      if values_only:
         as_list.append(res)
       if clear:
         self.clear_task(task_id)
     
-    print('Returning:', (results, as_list)[clean])
-    return Packet((results, as_list)[clean])
+    print('Returning:', (results, as_list)[values_only])
+    return Packet((results, as_list)[values_only])
 
 
 class Packet:
@@ -362,22 +354,27 @@ class DistributedBackend:
       # Arguments
       cores: Int. How many cores to utilize in addition to the active thread.
     """
+
+    port      = self.port
+    authkey   = self.authkey
+    server_ip = self.server_ip
     if cores > 1:
       multi_backend = MulticoreBackend(cores=cores)
       for i in range(cores):
         multi_backend.run(
           i,
           DistributedBackend._spawn_client_wrapper, 
-          self.manager
+          server_ip, port, authkey
         )
     else:
-      DistributedBackend._spawn_client_wrapper(self.manager)
+      DistributedBackend._spawn_client_wrapper(server_ip, port, authkey)
 
   @staticmethod
-  def _spawn_client_wrapper(manager):
+  def _spawn_client_wrapper(server_ip, port, authkey):
     """
       Wrapper for multiprocessing backend to spawn clients in subprocesses.
     """
+    manager = ParallelManager(address=(server_ip, port), authkey=authkey)
     manager.connect()
     
     print('Connected.', manager.address)
@@ -441,7 +438,7 @@ class DistributedBackend:
     task_id = packet.unpack()
     return task_id
   
-  def get_results(self, task_ids=[], clean=True):
+  def get_results(self, task_ids=[], values_only=True):
     """
       Gets a number of results from the results queue. Defaults to 1 result
       Hangs current thread until this quantity has been retreived.
@@ -467,7 +464,7 @@ class DistributedBackend:
       request_results = task_set.difference(completed_tasks) == set()
     
     print('Tasks complete.')
-    results = manager.get_results(task_ids, clean=clean).unpack()
+    results = manager.get_results(task_ids, values_only=values_only).unpack()
     print('Received Results', results)
 
     return results
