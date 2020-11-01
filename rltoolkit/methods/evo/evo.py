@@ -155,23 +155,34 @@ class Evo:
     _, seed = seeding.np_random()
 
     if self.backend is not None:
-
+      
+      task_ids = []
       #start queueing tasks
       for i, weights in enumerate(population):
         #dont send network for DistributedBackend, recreate
-        self.backend.test_network(
-          i, weights,
+        task_id = self.backend.test_network(
+          weights,
           self.env, episodes, seed,
-          (None, self.nn)[isinstance(self.backend, MulticoreBackend)], 
+          (self.nn, None)[isinstance(self.backend, DistributedBackend)], 
         )
+        task_ids.append(task_id)
 
       #Get results
       if isinstance(self.backend, MulticoreBackend):
-        res = self.backend.join()
+        res = self.backend.join(
+          values_only=True, 
+          numeric_only=True, 
+          ref_value='min'
+        )
       elif isinstance(self.backend, DistributedBackend):
-        res = self.backend.get_results(num_results=self.pop_size)
+        res = self.backend.get_results(
+          task_ids=task_ids,
+          values_only=True, 
+          numeric_only=True, 
+          ref_value='min'
+        )
 
-      #put results into order they were called, not order completed  
+      #record fitnesses 
       for i, avg in enumerate(res):
         fitnesses.append(Fitness(i, avg))
     else:

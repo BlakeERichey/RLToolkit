@@ -188,10 +188,15 @@ class ParallelManager(SyncManager):
     """
     for task_id in task_ids:
       task = self.tasks.get(task_id)
-      if task:
+      if task and task['running']:
         task['running'] = False
-        self.active_tasks.remove(task_id)
-        self.completed_tasks.add(task_id)
+        try:
+          self.active_tasks.remove(task_id)
+          self.completed_tasks.add(task_id)
+        except Exception as e:
+          print('Error occured killing tasks', e)
+          print('Active:', self.active_tasks)
+          print('Completed:', self.completed_tasks)
 
   def get_active_tasks(self,):
     """
