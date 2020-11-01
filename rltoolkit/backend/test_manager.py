@@ -1,10 +1,13 @@
 import time
+import gym
 import datetime
 import hashlib
 import asyncio
 import multiprocessing
 from   multiprocessing          import Queue, Process, Manager
 from   multiprocessing.managers import SyncManager, BaseManager
+
+from rltoolkit.agents import ANN
 
 def calc_big_number(number):
   total=0
@@ -13,6 +16,14 @@ def calc_big_number(number):
     total+=i
   
   return total
+
+def create_model():
+  filename = 'MountainCar'
+  env = gym.make(f'{filename}-v0')
+  # model = LSTM_ANN(env, n_timesteps=10, topology=[2,64,64,16])
+  # model = ANN(env, topology=[4,64,64,4])
+  model = ANN(env, topology=[256,256,256])
+  return model
 
 
 class ParallelManager(SyncManager):  
