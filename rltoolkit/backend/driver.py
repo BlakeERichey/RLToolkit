@@ -22,12 +22,13 @@ if __name__ == '__main__':
   # model = create_model()
   # hashes = []
   # for i in range(10):
-  #   # res = backend.test_network(model.get_weights(), env, 1, 1, model, timeout=14)
+  #   # res = backend.test_network(model.get_weights(), env, 1, 1, model, timeout=20)
   #   res = backend.run(calc_big_number, i, timeout=14)
   #   print('Task Hash:', res)
   #   hashes.append(res)
   # print('requesting:', hashes)
-  # backend.get_results(hashes, values_only=False, numeric_only=True, min_value=True) 
+  # results = backend.get_results(hashes, values_only=True, numeric_only=False, ref_value='max') 
+  # print(results)
 
 
   #Multicore backend
@@ -42,10 +43,10 @@ if __name__ == '__main__':
   backend = MulticoreBackend(4)
   for i in range(10):
     # task_id = backend.test_network(model.get_weights(), env, 1, 1, model)
-    task_id = backend.run(calc_big_number, i)
+    task_id = backend.run(calc_big_number, i, timeout=14)
     print('task_id:', task_id)
   
-  res = backend.join(values_only=False, numeric_only=True, min_value=False)
+  res = backend.join(values_only=True, numeric_only=False, ref_value='max')
   print('Resuults:', res)
   
   

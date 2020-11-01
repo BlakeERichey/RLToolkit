@@ -267,7 +267,8 @@ class Packet:
 class DistributedBackend:
 
   def __init__(self, server_ip='127.0.0.1', port=50000, authkey=b'rltoolkit', 
-              network_generator=None, use_gpu=False, require_gpu=False):
+              timeout=None, network_generator=None, 
+              use_gpu=False, require_gpu=False):
     """
       Initializes a Distributed & Multicore Backend Remote Manager.
 
@@ -276,6 +277,8 @@ class DistributedBackend:
         and be able to see this machine.
       port: Int. Port number to open for clients to interface with the manager.
       authkey: Byte string. Used to authenticate access to the manager.
+      timeout: Default time in seconds to permit on ther server for a task. 
+        If a task takes longer, the server ceases to await a response.
       network_generator: function. Function that returns a Keras model. 
         Used for client nodes to interpret network architecture and graph context.
 
@@ -296,7 +299,11 @@ class DistributedBackend:
     self.network_generator = network_generator
     
     # Start a shared manager server and access its queues
-    self.manager = ParallelManager(address=(server_ip, port), authkey=authkey)
+    self.manager = ParallelManager(
+      address=(server_ip, port), 
+      authkey=authkey, 
+      timeout=timeout
+    )
   
   def spawn_server(self):
     """
@@ -439,7 +446,8 @@ class DistributedBackend:
     task_id = packet.unpack()
     return task_id
   
-  def get_results(self, task_ids=[], values_only=True, numeric_only=False, min_value=True):
+  def get_results(self, task_ids=[], 
+                  values_only=True, numeric_only=False, ref_value='min'):
     """
       Gets a number of results from the results queue. Defaults to 1 result
       Hangs current thread until this quantity has been retreived.
@@ -450,12 +458,11 @@ class DistributedBackend:
       values_only: if False returns dictionary that includes the task ids with its 
         results. Otherwise, returns the values computed in order of the 
         requested task ids.
-      numeric_only: if True, adjusts non numeric results to either the minimum 
-        or maximum results numeric value of the results, as determine by the 
-        `min_value` parameter.
-      min_value: if True, adjusts non numeric results to the minimum 
-        numeric value of the results. If False, adjusts the the maximum.
-        numeric_only must be True, or this parameter is overlooked.
+      numeric_only: if True, adjusts non numeric results to a `ref_value` 
+        numeric value of the results, as determine by the `ref_valuue` parameter.
+      ref_value: One of ['min', 'minimum', 'max', 'maximum'] adjusts non 
+        numeric results to the reference value. `numeric_only` must be True, 
+        or this parameter is overlooked.
     """
     manager = self.manager
     manager.connect()
@@ -473,10 +480,10 @@ class DistributedBackend:
     results = manager.get_results(task_ids, values_only=values_only).unpack()
     if numeric_only:
       if values_only:
-        clean_noisy_results(results, min_value=min_value)
+        clean_noisy_results(results, reference=ref_value)
       else:
         temp_results = list(results.values())
-        clean_noisy_results(temp_results, min_value=min_value)
+        clean_noisy_results(temp_results, reference=ref_value)
         for i, key in enumerate(results.keys()):
           results[key] = temp_results[i]
     
@@ -577,19 +584,18 @@ class MulticoreBackend():
     self.tasks[task_id] = task
     return task_id
 
-  def join(self, values_only=True, numeric_only=False, min_value=True): #####IMPROVE DOCUMENTATION FOR DOCSTRING#####
+  def join(self, values_only=True, numeric_only=False, ref_value='min'): #####IMPROVE DOCUMENTATION FOR DOCSTRING#####
     """
       Syncronously awaits all subprocesses competion and returns 
       when this condition is met
 
       values_only: if True, function sorts results by pid then 
         strips process ids from returned list
-      numeric_only: if True, adjusts non numeric results to either the minimum 
-        or maximum results numeric value of the results, as determine by the 
-        `min_value` parameter.
-      min_value: if True, adjusts non numeric results to the minimum 
-        numeric value of the results. If False, adjusts the the maximum. 
-        numeric_only must be True, or this parameter is overlooked.
+      numeric_only: if True, adjusts non numeric results to a `ref_value` 
+        numeric value of the results, as determine by the `ref_valuue` parameter.
+      ref_value: One of ['min', 'minimum', 'max', 'maximum'] adjusts non 
+        numeric results to the reference value. `numeric_only` must be True, 
+        or this parameter is overlooked.
     """
 
     done = {} #completed tasks
@@ -643,10 +649,10 @@ class MulticoreBackend():
     results = self._results_from_queue(done, values_only)
     if numeric_only:
       if values_only:
-        clean_noisy_results(results, min_value=min_value)
+        clean_noisy_results(results, reference=ref_value)
       else:
         temp_results = list(results.values())
-        clean_noisy_results(temp_results, min_value=min_value)
+        clean_noisy_results(temp_results, reference=ref_value)
         for i, key in enumerate(results.keys()):
           results[key] = temp_results[i]
     return results
@@ -718,16 +724,21 @@ def backend_test_network(weights, network, env, episodes, seed):
     avg = None
   return avg
   
-def clean_noisy_results(results, min_value=True):
+def clean_noisy_results(results, reference='min'):
   """
     Makes corrections in place to results for tasks that failed or returned 
     None. Ensures a numeric answer for each result.
 
     #Arguments:
     Results: list of values that are either None or Numeric. 
-    min_value: If True, all None are replaced by the minimum numeric 
-    value in the results. If False, maximum numeric values are used.
+    reference: One of ['min', 'minimum', 'max', 'maximum'] adjusts non 
+      numeric results to the reference value. `numeric_only` must be True, 
+      or this parameter is overlooked.
   """
+  assert reference in {'min', 'minimum', 'max', 'maximum'}, \
+    f"Unidentified keyword for reference: {reference}"
+
+  min_value = reference in {'min', 'minimum'} #use minimum?
 
   ref_value = None
   for result in results:
