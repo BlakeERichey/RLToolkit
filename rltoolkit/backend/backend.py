@@ -440,13 +440,13 @@ class DistributedBackend:
 
     #       tasks_queued=False
   
-  @staticmethod
-  def _task_wrapper(server_ip, port, authkey, task_id, func, *args, **kwargs):
-    retval = func(*args, **kwargs)
+  # @staticmethod
+  # def _task_wrapper(server_ip, port, authkey, task_id, func, *args, **kwargs):
+  #   retval = func(*args, **kwargs)
 
-    manager = ParallelManager(address=(server_ip, port), authkey=authkey)
-    manager.connect()
-    manager.respond(task_id, retval)
+  #   manager = ParallelManager(address=(server_ip, port), authkey=authkey)
+  #   manager.connect()
+  #   manager.respond(task_id, retval)
   
   def test_network(self, weights, env, episodes, seed, network=None, timeout=None):
     """
