@@ -3,17 +3,23 @@ import keras
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM
 from keras.optimizers import Adam
-from rltoolkit.agents import ANN
+from rltoolkit.agents import LSTM_ANN
 from rltoolkit.utils import test_network
 from rltoolkit.methods import Evo
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
 from rltoolkit.backend import DistributedBackend
-from mutual import create_model
+
+def create_model():
+  env = gym.make('MountainCar-v0')
+  model = LSTM_ANN(env, n_timesteps=10, topology=[2,64,64,16])
+  # model = ANN(env, topology=[4,64,64,4])
+  # model = ANN(env, topology=[256,256,256])
+  return model
 
 
 if __name__ == '__main__':
   #========== Initialize Environment ============================================
-  env = gym.make('LunarLander-v2')
+  env = gym.make('MountainCar-v0')
   try:
     print(env.unwrapped.get_action_meanings())
   except:
@@ -23,7 +29,7 @@ if __name__ == '__main__':
   model = create_model()                #compile network
 
   #========== Demo ==============================================================
-  filename = 'lunarlander'
+  filename = 'mountaincar'
   load_saved = False
 
   #Load pretrained model
@@ -49,12 +55,12 @@ if __name__ == '__main__':
   )
 
   #========== Train network =====================================================
-  method = Evo(pop_size=100, elites=20)
+  method = Evo(pop_size=50, elites=8)
   nn = method.train(
     model,
     env, 
     generations=250, 
-    episodes=5, 
+    episodes=10, 
     callbacks=[graph, ckpt],
     backend=backend
   )
