@@ -1,1 +1,1 @@
-from .backend import DistributedBackend, MulticoreBackend
+from .backend import DistributedBackend, MulticoreBackend, ParallelManager

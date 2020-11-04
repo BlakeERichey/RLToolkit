@@ -1,4 +1,5 @@
 import gym
+import rltoolkit
 import keras
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM
@@ -55,7 +56,7 @@ if __name__ == '__main__':
   )
 
   #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=8)
+  method = Evo(pop_size=5, elites=2)
   nn = method.train(
     model,
     env, 

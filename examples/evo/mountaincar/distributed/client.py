@@ -1,5 +1,10 @@
+import os
+import logging
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+logging.disable(logging.WARNING)
 import gym
 import keras
+import rltoolkit
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM
 from keras.optimizers import Adam

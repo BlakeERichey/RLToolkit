@@ -1,4 +1,3 @@
-import keras
 import random
 import numpy as np
 from rltoolkit.wrappers import EnvManager

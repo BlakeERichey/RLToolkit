@@ -4,23 +4,26 @@ import types
 import queue
 import socket
 import logging
+import warnings
 import datetime
 import multiprocessing
 from   copy                     import deepcopy
-from   keras.models             import clone_model
 from   rltoolkit.utils          import test_network
 from   rltoolkit.wrappers       import subprocess_wrapper
 from   multiprocessing          import Queue, Process, Manager
 from   multiprocessing.managers import SyncManager
 
-#disable warnings in tensorflow subprocesses
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-logging.disable(logging.WARNING)
+with warnings.catch_warnings():
+    #disable warnings in tensorflow subprocesses
+    warnings.simplefilter("ignore")
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+    logging.disable(logging.WARNING)
 
-#Import predefined context for client spawning
-import keras
-import rltoolkit
-import tensorflow as tf
+    #Import predefined context for client spawning
+    import keras
+    from keras.models import clone_model
+    import rltoolkit
+    import tensorflow as tf
 
 if os.name != 'nt':
   try:
@@ -167,7 +170,8 @@ class ParallelManager(SyncManager):
       retval:  the computed answer to the task.
     """
     if task_id in self.active_tasks:
-      print('Received:', task_id, 'Result:', retval)
+      if retval is None:
+        logging.warning(f'Task {task_id} returned None.')
       task = self.tasks.get(task_id)
       end_time = datetime.datetime.now()
       duration = (end_time - task['start_time']).total_seconds()
@@ -195,9 +199,7 @@ class ParallelManager(SyncManager):
           self.active_tasks.remove(task_id)
           self.completed_tasks.add(task_id)
         except Exception as e:
-          print('Error occured killing tasks', e)
-          print('Active:', self.active_tasks)
-          print('Completed:', self.completed_tasks)
+          logging.warning(f'Error occured killing tasks: {e}')
 
   def get_active_tasks(self,):
     """
@@ -404,50 +406,7 @@ class DistributedBackend:
         
           manager.respond(task_id, retval)
           tasks_queued=False
-    # manager = ParallelManager(address=(server_ip, port), authkey=authkey)
-    # manager.connect()
-    
-    # print('Connected.', manager.address)
-    # tasks_queued = False
-    # while True:
-    #   time.sleep(1) #Time delay to not overload the servers incoming packets
-    #   if tasks_queued is False:
-    #     tasks_queued = manager.monitor().unpack()
-    #   else:
-    #     #Request info to complete task
-    #     packet = manager.request()
-        
-    #     #Unpack info and compute result
-    #     data = packet.unpack()
-    #     if data is not None:
-    #       task_id   = data['task_id']
-    #       func      = data['func']
-    #       args      = data['args']
-    #       kwargs    = data['kwargs']
-
-    #       args = (server_ip, port, authkey, task_id, func) + args
-    #       p = Process(
-    #         target=DistributedBackend._task_wrapper,
-    #         args=args,
-    #         kwargs=kwargs
-    #       )
-          
-    #       #Run in subprocesses
-    #       p.start()
-    #       while p.is_alive():
-    #         pass
-    #       p.join()
-
-    #       tasks_queued=False
-  
-  # @staticmethod
-  # def _task_wrapper(server_ip, port, authkey, task_id, func, *args, **kwargs):
-  #   retval = func(*args, **kwargs)
-
-  #   manager = ParallelManager(address=(server_ip, port), authkey=authkey)
-  #   manager.connect()
-  #   manager.respond(task_id, retval)
-  
+           
   def test_network(self, weights, env, episodes, seed, network=None, timeout=None):
     """
       Neural Network DistributedBackend.run() utility function. 
@@ -772,7 +731,7 @@ def backend_test_network(weights, network, env, episodes, seed):
     nn.set_weights(weights)
     avg = test_network(nn, env, episodes, seed=seed)
   except Exception as e:
-    print('Exception occured testing network!', e)
+    logging.warning(f'Exception occured testing network: {e}')
     avg = None
   return avg
   
