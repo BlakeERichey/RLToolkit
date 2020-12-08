@@ -8,29 +8,29 @@ import warnings
 import datetime
 import multiprocessing
 from   copy                     import deepcopy
-from   rltoolkit.utils          import test_network
+from   rltoolkit.utils          import test_network, silence_function
 from   rltoolkit.wrappers       import subprocess_wrapper
 from   multiprocessing          import Queue, Process, Manager
-from   multiprocessing.managers import SyncManager
+from   multiprocessing.managers import BaseManager, SyncManager
 
 with warnings.catch_warnings():
-    #disable warnings in tensorflow subprocesses
-    warnings.simplefilter("ignore")
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-    logging.disable(logging.WARNING)
+  #disable warnings in tensorflow subprocesses
+  warnings.simplefilter("ignore")
+  os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+  logging.disable(logging.WARNING)
 
-    #Import predefined context for client spawning
-    import keras
-    from keras.models import clone_model
-    import rltoolkit
-    import tensorflow as tf
+  #Import predefined context for client spawning
+  import tensorflow as tf
+  import keras
+  from keras.models import clone_model
+  import rltoolkit
 
-if os.name != 'nt':
-  try:
-    multiprocessing.set_start_method('forkserver')
-  except Exception as e:
-    if str(e) != 'context has already been set':
-      raise e
+# if os.name != 'nt':
+#   try:
+#     multiprocessing.set_start_method('forkserver')
+#   except Exception as e:
+#     if str(e) != 'context has already been set':
+#       raise e
 
 
 #========== MANAGERS ===========================================================
@@ -427,6 +427,7 @@ class DistributedBackend:
         operation. If None, the default for the manager, as created
         by __init__(), will be used.
     """
+    assert self.network_generator is not None, "Unable to test network without generator function"
     return self.run(
       backend_test_network, weights,      #model creation params
       self.network_generator, env, episodes, seed,  #test network params
@@ -514,6 +515,17 @@ class MulticoreBackend():
     self.results         = Queue() #results queue
     self.timeout         = timeout #max time for process
     self.current_task_id = 1       #Manages task ids
+
+  def shutdown(self,):
+    """
+      Terminates all tasks processes.
+    """
+    for task_id in self.tasks:
+      task = self.tasks[task_id]
+      p = task['process']
+      p.terminate()
+      task['running'] = False
+    self.active = 0
   
   def test_network(self, weights, env, episodes, seed, network, timeout=None):
     """
@@ -704,6 +716,35 @@ class MulticoreBackend():
     timeout = task['timeout']
     return dt > timeout if timeout is not None else False
 
+class LocalhostCluster(DistributedBackend):
+
+  def __init__(self, cores=1, *args, **kwargs):
+    """
+      Initializes a DistributedBackend run off localhost to run tasks 
+      concurrently without reloading contexts.
+      
+      #Arguments
+      cores: Int. Max number of cores to utilize.
+      timeout: Max time in seconds to permit a Process to run.
+      network_generator: function. Function that returns a Keras model. 
+        Used for client nodes to interpret network architecture and graph context.
+    """
+    super().__init__(*args, **kwargs)
+    print('Initializing LocalhostCluster Backend.')
+    self.manager.start()
+    self.task_scheduler = MulticoreBackend(2)
+    self.task_scheduler.run(silence_function, 1, self.spawn_client, cores)
+    self.task_scheduler.run(self._monitor_active_tasks)
+
+  def shutdown(self,):
+    """
+      Terminates open tasks.
+    """
+    self.manager.shutdown()
+    # task_schedulers subprocesses will be terminated due to manager.shutdown(), 
+    self.task_scheduler.shutdown()
+    print('Cluster shutdown.')
+
 #========== UTILITIES ==========================================================
 def backend_test_network(weights, network, env, episodes, seed):
   """
@@ -731,7 +772,7 @@ def backend_test_network(weights, network, env, episodes, seed):
     nn.set_weights(weights)
     avg = test_network(nn, env, episodes, seed=seed)
   except Exception as e:
-    logging.warning(f'Exception occured testing network: {e}')
+    logging.error(f'Exception occured testing network: {e}')
     avg = None
   return avg
   

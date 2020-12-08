@@ -7,7 +7,7 @@ setup(name='rltoolkit',
       author = 'Blake Richey',
       author_email='blake.e.richey@gmail.com',
       install_requires=[
-        'keras>=2.3.1', 
+        'keras==2.3.1', 
         'gym>=0.16.0', 
         'matplotlib>=2.1.0'
       ],

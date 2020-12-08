@@ -4,6 +4,12 @@ from rltoolkit.methods import Evo
 from rltoolkit.agents import ANN
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
+from rltoolkit.backend import LocalhostCluster
+
+def create_model():
+  env = gym.make('CartPole-v0')
+  model = ANN(env, topology=[32])
+  return model
 
 if __name__ == '__main__':
   #========== Initialize Environment ============================================
@@ -33,10 +39,11 @@ if __name__ == '__main__':
   graph = Graph()
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
+  backend = LocalhostCluster(4, network_generator=create_model)
 
   #========== Train network =====================================================
   method = Evo(pop_size=20, elites=4)
-  nn = method.train(model, env, generations=25, episodes=10, callbacks=[graph, ckpt], goal=200)
+  nn = method.train(model, env, generations=25, episodes=10, callbacks=[graph, ckpt], goal=200, backend=None)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']

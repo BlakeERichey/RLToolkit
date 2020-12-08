@@ -3,10 +3,11 @@ import numpy as np
 from copy import deepcopy
 from datetime import datetime
 from gym.utils import seeding
+import tensorflow as tf
 from keras.models import clone_model
 from collections import namedtuple
 from rltoolkit.errors import EarlyStopError
-from rltoolkit.backend import MulticoreBackend, DistributedBackend
+from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalhostCluster
 from rltoolkit.utils import format_time, test_network, truncate_weights
 
 class Evo:
@@ -163,7 +164,7 @@ class Evo:
         task_id = self.backend.test_network(
           weights,
           self.env, episodes, seed,
-          (self.nn, None)[isinstance(self.backend, DistributedBackend)], 
+          (None, self.nn)[isinstance(self.backend, MulticoreBackend)], 
         )
         task_ids.append(task_id)
 
@@ -174,7 +175,7 @@ class Evo:
           numeric_only=True, 
           ref_value='min'
         )
-      elif isinstance(self.backend, DistributedBackend):
+      else:
         res = self.backend.get_results(
           task_ids=task_ids,
           values_only=True, 

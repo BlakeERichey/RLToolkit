@@ -1,1 +1,2 @@
-from .backend import DistributedBackend, MulticoreBackend, ParallelManager
+from .backend import DistributedBackend, MulticoreBackend, ParallelManager, \
+  LocalhostCluster

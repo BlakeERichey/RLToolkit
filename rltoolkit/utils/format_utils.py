@@ -19,17 +19,24 @@ def format_time(seconds):
     time+=f'{s}s'
   return time
 
-def silence_function(func, *args, **kwargs):
+def silence_function(silence_level, func, *args, **kwargs):
   '''
     Replaces stdout temporarily to silence print statements inside a function
+    silence_level: one of [1,2,3]. 
+      1: Mute STDOUT
+      2: Mute STDOUT && STDIN
+      3: Mute STDOUT && STDIN && STDERR
   '''
   #mask standard output
   actualstdin  = sys.stdin
   actualstdout = sys.stdout
   actualstderr = sys.stderr
-  sys.stdin    = StringIO()
+
   sys.stdout   = StringIO()
-  sys.stderr   = StringIO()
+  if silence_level > 1:
+    sys.stdin    = StringIO()
+  if silence_level > 2:
+    sys.stderr   = StringIO()
 
   try:
     retval = func(*args, **kwargs)

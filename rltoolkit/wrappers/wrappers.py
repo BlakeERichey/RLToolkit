@@ -119,10 +119,24 @@ def subprocess_wrapper(func, res, pid, *args, **kwargs):
     >>>p.join()
     >>>queue.get() #returns (2+5) = 7
   """
-  retval = func(*args, **kwargs)
+  try:
+    retval = func(*args, **kwargs)
 
-  #store returned value
-  res.put({
-    'pid': pid,
-    'result': retval,
-  }) 
+    #store returned value
+    res.put({
+      'pid': pid,
+      'result': retval,
+    }) 
+  except ConnectionRefusedError:
+    pass
+
+class CallbackWrapper:
+  
+  def __init__(self):
+    """
+      Allows for chaining of functions
+    """
+    pass
+  
+  def register(name, func):
+    setattr(self, name, func)
