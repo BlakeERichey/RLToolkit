@@ -163,4 +163,7 @@ With an AI, or Keras neural network, and a gym environment, simply call the
 Add numba decorators to loop ES functions  
 Modify keep-alive strategy for server/task scheduler  
 Add GPU utilization for nodes in cluster  
-More Templates
+More Templates  
+Refactor Backend  
+STDOUT clutter mitigation  
+Eager Execution and Session Management TF2 update  
