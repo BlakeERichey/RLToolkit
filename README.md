@@ -161,5 +161,6 @@ With an AI, or Keras neural network, and a gym environment, simply call the
 
 # TODO  
 Add numba decorators to loop ES functions  
-Modify keep-alive strategy for server/task scheduler
-Add GPU utilization for nodes in cluster
+Modify keep-alive strategy for server/task scheduler  
+Add GPU utilization for nodes in cluster  
+More Templates
