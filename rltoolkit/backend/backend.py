@@ -25,12 +25,12 @@ with warnings.catch_warnings():
   from keras.models import clone_model
   import rltoolkit
 
-# if os.name != 'nt':
-#   try:
-#     multiprocessing.set_start_method('forkserver')
-#   except Exception as e:
-#     if str(e) != 'context has already been set':
-#       raise e
+if os.name != 'nt':
+  try:
+    multiprocessing.set_start_method('forkserver')
+  except Exception as e:
+    if str(e) != 'context has already been set':
+      raise e
 
 
 #========== MANAGERS ===========================================================
@@ -528,8 +528,6 @@ class MulticoreBackend():
       p = task['process']
       if p._popen is not None: #task has started
         p.terminate()
-
-    time.sleep(5)
     
     #Free Memeory
     for task_id in self.tasks:

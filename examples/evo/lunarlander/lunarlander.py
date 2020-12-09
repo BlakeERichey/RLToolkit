@@ -71,4 +71,4 @@ if __name__ == '__main__':
 
   episodes = 100
   avg = test_network(model, env, episodes=episodes, render=False, verbose=0)
-  print(f'Average after {episodes} episodes:', avg) #~220
+  print(f'Average after {episodes} episodes:', avg) #~247
