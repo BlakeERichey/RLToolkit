@@ -1,46 +1,41 @@
-#====== Mute subprocesses =======
-import os
-import sys
-import warnings
-warnings.filterwarnings("ignore")
-stderr = sys.stderr
-sys.stderr = open(os.devnull, 'w')
-import keras
-sys.stderr = stderr
-#================================
-
 import gym
-import tensorflow as tf
+import socket
 from keras.models import load_model
+from mutual import create_model, ENV_NAME, PORT, AUTHKEY, CORES_PER_NODE, TIMEOUT
 from rltoolkit.methods import Evo
-from rltoolkit.agents import LSTM_ANN, ANN
 from rltoolkit.utils import test_network
-from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
-from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalClusterBackend
-
-filename = 'MountainCar'
-train_from_scratch = True
-
-def create_model():
-  env = gym.make(f'{filename}-v0')
-  model = LSTM_ANN(env, n_timesteps=10, topology=[2,64,64,16])
-  # model = ANN(env, topology=[4,64,64,4])
-  # model = ANN(env, topology=[256,256,256])
-  return model
+from rltoolkit.backend import DistributedBackend
+from rltoolkit.callbacks import Graph, Checkpoint
 
 if __name__ == '__main__':
+  #========== Initialize Backend ===============================================
+  ip = socket.gethostbyname(socket.gethostname())
+  with open('server_ip.log', 'r') as f:
+    ip = f.readline()
+  backend = DistributedBackend(
+    port=PORT, 
+    timeout=TIMEOUT,
+    server_ip=ip, 
+    authkey=AUTHKEY,
+    network_generator=create_model
+  )
+
   #========== Initialize Environment ============================================
-  env = gym.make(f'{filename}-v0')
+  env = gym.make(ENV_NAME)
   try:
     print(env.unwrapped.get_action_meanings())
   except:
     pass
 
   #========== Build network =====================================================
-  model = create_model()
+  model = create_model()                #compile network
 
-  #Load pretrained model?
-  if not train_from_scratch:
+  #========== Demo ==============================================================
+  filename = 'best_model'
+  load_saved = False
+
+  #Load pretrained model
+  if load_saved:
     try:
       model = load_model(f'{filename}.h5')
     except:
@@ -53,12 +48,19 @@ if __name__ == '__main__':
   graph = Graph()
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
-  # backend = DistributedBackend(create_model, *server_info)
-  backend = LocalClusterBackend(8, network_generator=create_model)
 
   #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=8)
-  nn = method.train(model, env, generations=250, episodes=10, callbacks=[graph, ckpt], backend=backend)
+  ############################# EDITABLE VARIABLES #############################
+  method = Evo(pop_size=5, elites=2)
+  nn = method.train(
+    model,
+    env, 
+    generations=250, 
+    episodes=10, 
+    callbacks=[graph, ckpt],
+    backend=backend
+  )
+  ##############################################################################
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']
@@ -68,13 +70,14 @@ if __name__ == '__main__':
 
   #========== Evaluate Results ==================================================
   #Load best saved model
-  model = load_model('nn.h5')
+  model = load_model(f'{filename}.h5')
 
   # Test models results for 5 episodes
   episodes = 5
   avg = test_network(model, env, episodes=episodes, render=True, verbose=1)
   print(f'Average after {episodes} episodes:', avg)
 
+  print('Testing 100 times!')
   episodes = 100
   avg = test_network(model, env, episodes=episodes, render=False, verbose=0)
   print(f'Average after {episodes} episodes:', avg)

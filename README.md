@@ -158,3 +158,8 @@ With an AI, or Keras neural network, and a gym environment, simply call the
   avg = test_network(model, env, episodes=5, render=True)
   print('Average after 5 episodes:', avg)
 ```
+
+# TODO  
+Add numba decorators to loop ES functions  
+Modify keep-alive strategy for server/task scheduler
+Add GPU utilization for nodes in cluster

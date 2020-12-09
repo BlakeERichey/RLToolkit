@@ -138,5 +138,5 @@ class CallbackWrapper:
     """
     pass
   
-  def register(name, func):
+  def register(self, name, func):
     setattr(self, name, func)

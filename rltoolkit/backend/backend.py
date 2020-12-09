@@ -375,6 +375,7 @@ class DistributedBackend:
           DistributedBackend._spawn_client_wrapper, 
           server_ip, port, authkey
         )
+      multi_backend.join()
     else:
       DistributedBackend._spawn_client_wrapper(server_ip, port, authkey)
 

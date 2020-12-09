@@ -1,7 +1,7 @@
 import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Dense, LSTM, TimeDistributed, Conv2D, MaxPooling2D, \
-  BatchNormalization, Flatten
+  BatchNormalization, Flatten, GlobalAveragePooling2D
 from keras.optimizers import Adam
 
 def get_index(arr, i):
@@ -90,7 +90,7 @@ def CNN(env, topology=[64], activations=['relu'], kernel_size=3, pool_size=2, lr
     layers+=1
   
   #FCN
-  model.add(Flatten())
+  model.add(GlobalAveragePooling2D())
   #Output layer
   if hasattr(env.action_space, 'n'):
     nodes = env.action_space.n
@@ -191,7 +191,7 @@ def LSTM_CNN(env, n_timesteps=5, cnn_topology=[64], cnn_activations=['relu'],
     layers+=1
   
   #FCN
-  model.add(TimeDistributed(Flatten()))
+  model.add(TimeDistributed(GlobalAveragePooling2D()))
   for i, nodes in enumerate(fcn_topology):
     model.add(LSTM(nodes, activation=get_index(fcn_activations, i) or 'relu', return_sequences=True))
     if i != len(fcn_topology) - 1:
