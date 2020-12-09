@@ -4,7 +4,7 @@ from rltoolkit.methods import Evo
 from rltoolkit.agents import ANN
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
-from rltoolkit.backend import LocalhostCluster
+from rltoolkit.backend import LocalClusterBackend
 
 def create_model():
   env = gym.make('CartPole-v0')
@@ -39,7 +39,7 @@ if __name__ == '__main__':
   graph = Graph()
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
-  backend = LocalhostCluster(4, network_generator=create_model)
+  backend = LocalClusterBackend(4, network_generator=create_model)
 
   #========== Train network =====================================================
   method = Evo(pop_size=20, elites=4)

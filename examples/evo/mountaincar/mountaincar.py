@@ -16,7 +16,7 @@ from rltoolkit.methods import Evo
 from rltoolkit.agents import LSTM_ANN, ANN
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
-from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalhostCluster
+from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalClusterBackend
 
 filename = 'MountainCar'
 train_from_scratch = True
@@ -54,7 +54,7 @@ if __name__ == '__main__':
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
   # backend = DistributedBackend(create_model, *server_info)
-  backend = LocalhostCluster(8, network_generator=create_model)
+  backend = LocalClusterBackend(8, network_generator=create_model)
 
   #========== Train network =====================================================
   method = Evo(pop_size=50, elites=8)

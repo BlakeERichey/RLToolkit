@@ -3,7 +3,7 @@ import gym
 import datetime
 import rltoolkit
 from rltoolkit.agents import ANN
-from rltoolkit.backend import LocalhostCluster
+from rltoolkit.backend import LocalClusterBackend
 
 ########### Helper Functions ###################################################
 
@@ -27,7 +27,7 @@ def create_model():
 ########### TESTS ##############################################################
 
 def test_localhost_cluster():
-  backend = LocalhostCluster(10)
+  backend = LocalClusterBackend(10)
 
   hashes = []
   for i in range(10):
@@ -41,7 +41,7 @@ def test_localhost_cluster():
   backend.shutdown()
 
 def test_localhost_cluster_env():
-  backend = LocalhostCluster(3, network_generator=create_model)
+  backend = LocalClusterBackend(3, network_generator=create_model)
 
   env = gym.make(f'MountainCar-v0')
   model = create_model()
@@ -60,6 +60,6 @@ def test_localhost_cluster_env():
   backend.shutdown()
 
 if __name__ == '__main__':
-  # test_localhost_cluster()
+  test_localhost_cluster()
   # time.sleep(3) #Await socket to become available
   test_localhost_cluster_env()

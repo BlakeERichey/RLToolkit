@@ -304,6 +304,7 @@ class DistributedBackend:
     self.port      = port
     self.authkey   = authkey
     self.server_ip = server_ip
+    self.manager_creds = (server_ip, port, authkey)
     self.network_generator = network_generator
     
     # Start a shared manager server and access its queues
@@ -520,11 +521,25 @@ class MulticoreBackend():
     """
       Terminates all tasks processes.
     """
+    #Terminate all processes (These loops are done asynchronously)
+    for task_id in self.tasks:
+      task = self.tasks[task_id]
+      task['running'] = False
+      p = task['process']
+      if p._popen is not None: #task has started
+        p.terminate()
+
+    time.sleep(5)
+    
+    #Free Memeory
     for task_id in self.tasks:
       task = self.tasks[task_id]
       p = task['process']
-      p.terminate()
-      task['running'] = False
+      #Process never started         #process was terminated
+      while p._popen is not None and p.exitcode is None:
+        pass #Wait until process has ended
+      p.close()
+    
     self.active = 0
   
   def test_network(self, weights, env, episodes, seed, network, timeout=None):
@@ -716,7 +731,7 @@ class MulticoreBackend():
     timeout = task['timeout']
     return dt > timeout if timeout is not None else False
 
-class LocalhostCluster(DistributedBackend):
+class LocalClusterBackend(DistributedBackend):
 
   def __init__(self, cores=1, *args, **kwargs):
     """
@@ -730,19 +745,58 @@ class LocalhostCluster(DistributedBackend):
         Used for client nodes to interpret network architecture and graph context.
     """
     super().__init__(*args, **kwargs)
-    print('Initializing LocalhostCluster Backend.')
+    print('Initializing LocalClusterBackend Backend.')
     self.manager.start()
-    self.task_scheduler = MulticoreBackend(2)
-    self.task_scheduler.run(silence_function, 1, self.spawn_client, cores)
-    self.task_scheduler.run(self._monitor_active_tasks)
+
+    port      = self.port
+    authkey   = self.authkey
+    server_ip = self.server_ip
+    self.manager_creds = (server_ip, port, authkey)
+
+    self.multi_backend = MulticoreBackend(cores+1) #Negligible monitoring core
+    for _ in range(cores):
+      self.multi_backend.run(
+        silence_function, 1, 
+        LocalClusterBackend._spawn_client_wrapper,
+        *self.manager_creds
+      )
+    self.multi_backend.run(LocalClusterBackend.monitor_active_tasks, *self.manager_creds)
+
+  @staticmethod
+  def monitor_active_tasks(server_ip, port, authkey):
+    """
+      Run on server. Monitors active tasks to ensure they complete within 
+      timeout limit. Hangs the active thread.
+    """
+    manager = ParallelManager(address=(server_ip, port), authkey=authkey)
+    manager.connect()
+
+    while True:
+      time.sleep(1) #delay as to not overwhelm servers incoming packets
+      tasks_to_kill = set()
+      active_tasks = manager.get_active_tasks().unpack()
+
+      #If an active task duration exceeds its timeout limit, set to kill.
+      for task_id, task in active_tasks.items():
+        start_time   = task.get('start_time')
+        max_duration = task.get('timeout')
+        duration = (datetime.datetime.now() - start_time).total_seconds()
+
+        if max_duration and duration > max_duration:
+          tasks_to_kill.add(task_id)
+      
+      if len(tasks_to_kill):
+        manager.kill_tasks(tasks_to_kill)
+
 
   def shutdown(self,):
     """
       Terminates open tasks.
     """
+    logging.debug('Shutting down cluster.')
     self.manager.shutdown()
     # task_schedulers subprocesses will be terminated due to manager.shutdown(), 
-    self.task_scheduler.shutdown()
+    self.multi_backend.shutdown()
     print('Cluster shutdown.')
 
 #========== UTILITIES ==========================================================

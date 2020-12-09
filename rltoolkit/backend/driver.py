@@ -6,7 +6,7 @@ import multiprocessing
 from   multiprocessing          import Queue, Process, Manager
 from   multiprocessing.managers import SyncManager, BaseManager
 from test_manager import ParallelManager, calc_big_number, create_model
-from backend import DistributedBackend, MulticoreBackend, LocalhostCluster, ParallelManager
+from backend import DistributedBackend, MulticoreBackend, LocalClusterBackend, ParallelManager
 
 filename = 'MountainCar'
 train_from_scratch = True
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
   # self.manager = self.cluster.manager
   
-  # backend = LocalhostCluster(10)
+  # backend = LocalClusterBackend(10)
   # manager = backend.manager
   # manager.shutdown()
 
@@ -30,7 +30,7 @@ if __name__ == '__main__':
   # manager.start()
   # manager.shutdown()
   print('Starting!')
-  backend = LocalhostCluster(10)
+  backend = LocalClusterBackend(10)
   # time.sleep(30)
 
   hashes = []

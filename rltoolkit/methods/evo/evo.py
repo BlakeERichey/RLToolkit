@@ -7,7 +7,7 @@ import tensorflow as tf
 from keras.models import clone_model
 from collections import namedtuple
 from rltoolkit.errors import EarlyStopError
-from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalhostCluster
+from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalClusterBackend
 from rltoolkit.utils import format_time, test_network, truncate_weights
 
 class Evo:
