@@ -54,7 +54,8 @@ if __name__ == '__main__':
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
   # backend = DistributedBackend(create_model, *server_info)
-  backend = LocalClusterBackend(8, network_generator=create_model)
+  backend = LocalClusterBackend(4, network_generator=create_model)
+  # backend = MulticoreBackend(4)
 
   #========== Train network =====================================================
   method = Evo(pop_size=50, elites=8)

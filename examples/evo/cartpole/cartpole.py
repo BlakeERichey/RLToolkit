@@ -39,11 +39,11 @@ if __name__ == '__main__':
   graph = Graph()
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
-  backend = LocalClusterBackend(4, network_generator=create_model)
+  backend = LocalClusterBackend(10, network_generator=create_model)
 
   #========== Train network =====================================================
-  method = Evo(pop_size=20, elites=4)
-  nn = method.train(model, env, generations=25, episodes=10, callbacks=[graph, ckpt], goal=200, backend=None)
+  method = Evo(pop_size=50, elites=10)
+  nn = method.train(model, env, generations=25, episodes=10, callbacks=[graph, ckpt], goal=200, backend=backend)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']

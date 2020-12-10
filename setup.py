@@ -9,6 +9,7 @@ setup(name='rltoolkit',
       install_requires=[
         'keras==2.3.1', 
         'gym>=0.16.0', 
-        'matplotlib>=2.1.0'
+        'matplotlib>=2.1.0',
+        'numba>=0.49.1'
       ],
     )

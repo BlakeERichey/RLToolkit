@@ -1,5 +1,8 @@
+import types
+import keras
 import random
 import numpy as np
+from numba import njit
 from copy import deepcopy
 from datetime import datetime
 from gym.utils import seeding
@@ -62,9 +65,26 @@ class Evo:
     self.backend = backend
     population = [truncate_weights(nn.get_weights(), n_decimals=3)]
 
-    for i in range(1, self.pop_size):
-      nn = clone_model(nn)
-      population.append(truncate_weights(nn.get_weights(), n_decimals=3))
+    if backend is None:
+      for i in range(1, self.pop_size):
+        nn = clone_model(nn)
+        population.append(truncate_weights(nn.get_weights(), n_decimals=3))
+    else:
+      #Pass population generation to backend
+      print('\nPassing population generation to backend...', end='', flush=True)
+      task_ids = []
+      for i in range(1, self.pop_size):
+        if type(backend) == MulticoreBackend:
+          backend.run(duplicate_model, nn)
+        else:
+          task_id = backend.run(duplicate_model, backend.network_generator)
+          task_ids.append(task_id)
+      
+      #Get new weights from backend
+      if type(backend) == MulticoreBackend:
+        population.extend(backend.join())
+      else:
+        population.extend(backend.get_results(task_ids))
     
     print('Done.')
     start_time = datetime.now()
@@ -128,10 +148,12 @@ class Evo:
           _id = ranked[i].id
           population[_id] = self._mutate(new_individuals[i-self.elites])
 
+    if backend is not None:
+      backend.shutdown()
+      
     best_weights = population[ranked[0].id]
     self.nn.set_weights(best_weights)
     return self.nn
-
 
   #========== Utility Functions ===============================================
 
@@ -204,53 +226,16 @@ class Evo:
 
   def _crossover(self, parent1, parent2):
     """
-      Performs genetic breeding of parent1 and parent2 to spawn a new individual.
-
-      #Arguments
       parent1: a multi-dimensional list defining a keras NN's weights.
       parent2: a multi-dimensional list defining a keras NN's weights.
-
-      #Returns
-      new_weights to be set as a NN weights via NN.set_weights(new_weights).
-      AKA an individual in the population
     """
-    #Uncomment print statements to see how this function works
-    new_weights = list()
-    
-    #ensure weight structures are the same
-    for layer1, layer2 in zip(parent1, parent2):
-        assert layer1.shape == layer2.shape, 'Colonies don\'t have same shape'
-        new_weights.append(np.zeros_like(layer1))
-
-    #begin breedings
-    for i, layer1, layer2 in zip(range(len(new_weights)), parent1, parent2):
-        if new_weights[i].ndim == 1:
-            # This method is potentially dangerous since I'm not sure if layer can be other then 2 dimensional
-            # and bias can be other than 1 dimensional
-            # Bias is always set to 0
-            continue
-        for j, weight1, weight2 in zip(range(len(new_weights[i])), layer1, layer2):
-            seeds = random.sample(range(len(new_weights[i][j])), random.choice(range(len(new_weights[i][j]))))
-            #print(i, j, weight1, weight2, seeds)
-            '''
-            i and j = number of iteration,
-            weight1 and weight2 = current row looking at,
-            seeds = column location of weight1 that will be in new weights
-
-            example:
-            if output = 2 0 [0. 0. 0. 0.] [1. 1. 1. 1.] [3, 2].
-            first row of second layer matrix of colony weights will be
-            [1. 1. 0. 0.]
-            '''
-            #print()
-            for seed in seeds:
-                new_weights[i][j][seed] = weight1[seed]
-            for seed in range(len(new_weights[i][j])):
-                if seed not in seeds:
-                    new_weights[i][j][seed] = weight2[seed]
-
-        new_weights[i] = np.around(new_weights[i].astype(np.float64), 3)
-
+    new_weights = []
+    for i in range(len(parent1)):    #Layer in network
+      strand1 = parent1[i] #Network layers weights as np.array
+      strand2 = parent2[i] #Network layers weights as np.array
+      new_strand = breed_strand(strand1, strand2)
+      new_strand = truncate_weights(new_strand)
+      new_weights.append(new_strand)
     return new_weights
 
   def _selection(self, ranked, elites):
@@ -281,3 +266,46 @@ class Evo:
       layer += mask[i]
     
     return weights
+
+def duplicate_model(network):
+  """
+    Utility function to employ a backend if present to generate a population.
+    DO NOT CALL FROM CORE THREAD.
+
+    reference_model: Keras network if backend is MulticoreBackend. Otherwise 
+      a function that returns a Keras network is expected.
+  """
+
+  keras.backend.clear_session()
+  if type(network) == types.FunctionType: #Distributed create_model
+    nn = network()
+    # nn.summary() #To identify is session is being cleared
+  else: #Multicore model
+    nn  = clone_model(network)
+
+  return truncate_weights(nn.get_weights(), n_decimals=3)
+
+
+@njit
+def breed_strand(strand1, strand2):
+  """
+    Create a new strand by randomly selecting half the 
+    new genes from strand1 and the other half from strand2
+
+    This function is compiled at runtime for faster subsequent calls
+  """
+  original_shape = strand1.shape
+  strand1 = strand1.ravel()
+  strand2 = strand2.ravel()
+  num_genes = strand1.size
+
+  #Randomly select half the new genes from strand1 and the other from strand2
+  indices = np.zeros((num_genes,))
+  indices[np.random.choice(num_genes, num_genes//2, replace=False)] = 1
+
+  #Randomly select portion of the new genes from strand1 and the rest from strand2
+  # indices = np.zeros((num_genes,))
+  # indices[np.random.choice(num_genes, np.random.randint(num_genes), replace=False)] = 1
+  
+  new_strand = np.where(indices==0, strand1, strand2).reshape(original_shape)
+  return new_strand

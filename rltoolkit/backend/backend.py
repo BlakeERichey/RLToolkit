@@ -25,12 +25,12 @@ with warnings.catch_warnings():
   from keras.models import clone_model
   import rltoolkit
 
-if os.name != 'nt':
-  try:
-    multiprocessing.set_start_method('forkserver')
-  except Exception as e:
-    if str(e) != 'context has already been set':
-      raise e
+# if os.name != 'nt':
+#   try:
+#     multiprocessing.set_start_method('forkserver')
+#   except Exception as e:
+#     if str(e) != 'context has already been set':
+#       raise e
 
 
 #========== MANAGERS ===========================================================
@@ -313,6 +313,12 @@ class DistributedBackend:
       authkey=authkey, 
       timeout=timeout
     )
+  
+  def shutdown(self,):
+    """
+      Does nothing. Kept for consistency between backends.
+    """
+    pass
   
   def spawn_server(self):
     """

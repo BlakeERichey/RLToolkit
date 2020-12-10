@@ -89,5 +89,5 @@ def truncate_weights(weights, n_decimals=3, alpha=1):
         model.set_weights(truncate_weights(model.get_weights()))
     """
     for i, w in enumerate(weights):
-      weights[i]=np.around((alpha*w).astype(np.float64), n_decimals)
+      weights[i]=np.around((alpha*w).astype(np.float32), n_decimals)
     return weights
