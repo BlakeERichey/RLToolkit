@@ -299,13 +299,14 @@ def breed_strand(strand1, strand2):
   strand2 = strand2.ravel()
   num_genes = strand1.size
 
-  #Randomly select half the new genes from strand1 and the other from strand2
-  indices = np.zeros((num_genes,))
-  indices[np.random.choice(num_genes, num_genes//2, replace=False)] = 1
-
-  #Randomly select portion of the new genes from strand1 and the rest from strand2
+  # #Randomly select half the new genes from strand1 and the other from strand2
   # indices = np.zeros((num_genes,))
-  # indices[np.random.choice(num_genes, np.random.randint(num_genes), replace=False)] = 1
+  # indices[np.random.choice(num_genes, num_genes//2, replace=False)] = 1
+
+  # Randomly select portion of the new genes from strand1 and the rest from strand2
+  indices = np.zeros((num_genes,))
+  perc = .01 * np.random.randn() + 0.5 #percentage of genes from strand1, 46-54%
+  indices[np.random.choice(num_genes, round(num_genes*perc), replace=False)] = 1
   
   new_strand = np.where(indices==0, strand1, strand2).reshape(original_shape)
   return new_strand

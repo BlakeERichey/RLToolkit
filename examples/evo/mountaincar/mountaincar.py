@@ -54,12 +54,12 @@ if __name__ == '__main__':
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
   # backend = DistributedBackend(create_model, *server_info)
-  backend = LocalClusterBackend(4, network_generator=create_model)
+  backend = LocalClusterBackend(5, network_generator=create_model)
   # backend = MulticoreBackend(4)
 
   #========== Train network =====================================================
   method = Evo(pop_size=50, elites=8)
-  nn = method.train(model, env, generations=250, episodes=10, callbacks=[graph, ckpt], backend=backend)
+  nn = method.train(model, env, generations=250, episodes=1, callbacks=[graph, ckpt], backend=backend)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
   #========== Evaluate Results ==================================================
   #Load best saved model
-  model = load_model('nn.h5')
+  model = load_model(f'{filename}.h5')
 
   # Test models results for 5 episodes
   episodes = 5

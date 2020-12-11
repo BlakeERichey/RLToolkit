@@ -870,7 +870,6 @@ def backend_test_network(weights, network, env, episodes, seed):
     episodes: How many episodes to test an environment.
     seed:     Random seed to ensure consistency across tests
   """
-  logging.error('Running through environment...')
 
   ###CAN THROW ERRORS IN TRY LOOP THAT SHOULD BE REPORTED
   try:
