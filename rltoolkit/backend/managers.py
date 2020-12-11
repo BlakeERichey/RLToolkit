@@ -1,17 +1,9 @@
+import logging
 import datetime
 import multiprocessing
-from multiprocessing          import Queue, Process, Manager
 from multiprocessing.managers import SyncManager
 import rltoolkit
-from rltoolkit.backend.utils import Packet, clean_noisy_results, backend_test_network
-from rltoolkit.wrappers import subprocess_wrapper
-
-if os.name != 'nt':
-  try:
-    multiprocessing.set_start_method('forkserver')
-  except Exception as e:
-    if str(e) != 'context has already been set':
-      raise e
+from rltoolkit.backend.utils import Packet
 
 class ParallelManager(SyncManager):  
   def __init__(self, *args, timeout=None, task_limit=None, **kwargs):

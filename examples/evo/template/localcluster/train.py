@@ -5,8 +5,8 @@ from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
   CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES
 from rltoolkit.methods import Evo
 from rltoolkit.utils import test_network
-from rltoolkit.backend import LocalClusterBackend
 from rltoolkit.callbacks import Graph, Checkpoint
+from rltoolkit.backend.keras import LocalClusterBackend
 
 if __name__ == '__main__':
   #========== Initialize Backend ===============================================

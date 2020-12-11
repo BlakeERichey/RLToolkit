@@ -6,7 +6,7 @@ from keras.optimizers import Adam
 from rltoolkit.utils import test_network
 from rltoolkit.methods import Evo
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
-from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalClusterBackend
+from rltoolkit.backend.keras import MulticoreBackend, DistributedBackend, LocalClusterBackend
 
 def create_model():
   env = gym.make('LunarLander-v2')
@@ -51,8 +51,8 @@ if __name__ == '__main__':
   backend = LocalClusterBackend(25, network_generator=create_model)
 
   #========== Train network =====================================================
-  method = Evo(pop_size=50, elites=8)
-  nn = method.train(model, env, generations=250, episodes=5, callbacks=[graph, ckpt], backend=backend)
+  method = Evo(pop_size=250, elites=30)
+  nn = method.train(model, env, generations=250, episodes=10, callbacks=[graph, ckpt], backend=backend)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']

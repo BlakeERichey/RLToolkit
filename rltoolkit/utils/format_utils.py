@@ -32,7 +32,8 @@ def silence_function(silence_level, func, *args, **kwargs):
   actualstdout = sys.stdout
   actualstderr = sys.stderr
 
-  sys.stdout   = StringIO()
+  if silence_level > 0:
+    sys.stdout   = StringIO()
   if silence_level > 1:
     sys.stdin    = StringIO()
   if silence_level > 2:

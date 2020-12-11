@@ -1,11 +1,12 @@
 import gym
 import socket
 from keras.models import load_model
-from mutual import create_model, ENV_NAME, PORT, AUTHKEY, CORES_PER_NODE, TIMEOUT
+from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
+  CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES
 from rltoolkit.methods import Evo
 from rltoolkit.utils import test_network
-from rltoolkit.backend import DistributedBackend
 from rltoolkit.callbacks import Graph, Checkpoint
+from rltoolkit.backend.keras import DistributedBackend
 
 if __name__ == '__main__':
   #========== Initialize Backend ===============================================
@@ -15,7 +16,7 @@ if __name__ == '__main__':
   backend = DistributedBackend(
     port=PORT, 
     timeout=TIMEOUT,
-    server_ip=ip, 
+    server_ip=ip,
     authkey=AUTHKEY,
     network_generator=create_model
   )
@@ -50,17 +51,16 @@ if __name__ == '__main__':
   ckpt = Checkpoint(f'{filename}.h5')
 
   #========== Train network =====================================================
-  ############################# EDITABLE VARIABLES #############################
-  method = Evo(pop_size=5, elites=2)
+  method = Evo(pop_size=POP_SIZE, elites=ELITES)
   nn = method.train(
     model,
     env, 
-    generations=250, 
-    episodes=10, 
+    generations=GENERATIONS, 
+    episodes=EPISODES,
+    goal=GOAL, 
     callbacks=[graph, ckpt],
     backend=backend
   )
-  ##############################################################################
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']

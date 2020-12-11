@@ -1,19 +1,28 @@
 import gym
-import keras
-from keras.models import Sequential, load_model
-from keras.layers import Dense, LSTM
-from keras.optimizers import Adam
-from rltoolkit.agents import ANN
-from rltoolkit.utils import test_network
+import socket
+from keras.models import load_model
+from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
+  CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES
 from rltoolkit.methods import Evo
-from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
-from rltoolkit.backend import DistributedBackend
-from mutual import create_model
-
+from rltoolkit.utils import test_network
+from rltoolkit.callbacks import Graph, Checkpoint
+from rltoolkit.backend.keras import DistributedBackend
 
 if __name__ == '__main__':
+  #========== Initialize Backend ===============================================
+  ip = socket.gethostbyname(socket.gethostname())
+  with open('server_ip.log', 'r') as f:
+    ip = f.readline()
+  backend = DistributedBackend(
+    port=PORT, 
+    timeout=TIMEOUT,
+    server_ip=ip,
+    authkey=AUTHKEY,
+    network_generator=create_model
+  )
+
   #========== Initialize Environment ============================================
-  env = gym.make('LunarLander-v2')
+  env = gym.make(ENV_NAME)
   try:
     print(env.unwrapped.get_action_meanings())
   except:
@@ -23,7 +32,7 @@ if __name__ == '__main__':
   model = create_model()                #compile network
 
   #========== Demo ==============================================================
-  filename = 'lunarlander'
+  filename = 'best_model'
   load_saved = False
 
   #Load pretrained model
@@ -40,21 +49,15 @@ if __name__ == '__main__':
   graph = Graph()
   #Make a checkpoint to save best model during training
   ckpt = Checkpoint(f'{filename}.h5')
-  backend = DistributedBackend(
-    server_ip='127.0.0.1',
-    port=50000, 
-    timeout=60,
-    authkey=b'rltoolkit',
-    network_generator=create_model
-  )
 
   #========== Train network =====================================================
-  method = Evo(pop_size=100, elites=20)
+  method = Evo(pop_size=POP_SIZE, elites=ELITES)
   nn = method.train(
     model,
     env, 
-    generations=250, 
-    episodes=5, 
+    generations=GENERATIONS, 
+    episodes=EPISODES,
+    goal=GOAL, 
     callbacks=[graph, ckpt],
     backend=backend
   )
@@ -77,4 +80,4 @@ if __name__ == '__main__':
   print('Testing 100 times!')
   episodes = 100
   avg = test_network(model, env, episodes=episodes, render=False, verbose=0)
-  print(f'Average after {episodes} episodes:', avg) #~220
+  print(f'Average after {episodes} episodes:', avg)

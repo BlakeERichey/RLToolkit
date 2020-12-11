@@ -3,7 +3,8 @@ import gym
 import datetime
 import rltoolkit
 from rltoolkit.agents import ANN
-from rltoolkit.backend import LocalClusterBackend
+from rltoolkit.backend import LocalClusterDispatcher
+from rltoolkit.backend.keras import LocalClusterBackend, set_gpu_session
 
 ########### Helper Functions ###################################################
 
@@ -27,18 +28,18 @@ def create_model():
 ########### TESTS ##############################################################
 
 def test_localhost_cluster():
-  backend = LocalClusterBackend(10)
+  dispatcher = LocalClusterDispatcher(10)
 
   hashes = []
   for i in range(10):
-    res = backend.run(calc_big_number, i, timeout=10)
+    res = dispatcher.run(calc_big_number, i, timeout=10)
     hashes.append(res)
   assert hashes == [str(i) for i in range(1, 11)], f'Task IDs not returning properly {hashes}'
 
-  results = backend.get_results(hashes, values_only=True) 
+  results = dispatcher.get_results(hashes, values_only=True) 
   assert results == [0,1,3,6,None,None,None,None,None,None], \
-    f'Invalid Localhost Cluster Results {results}'
-  backend.shutdown()
+    f'Invalid LocalhostClusterDispatcher Results {results}'
+  dispatcher.shutdown()
 
 def test_localhost_cluster_env():
   backend = LocalClusterBackend(3, network_generator=create_model)
@@ -60,5 +61,6 @@ def test_localhost_cluster_env():
   backend.shutdown()
 
 if __name__ == '__main__':
-  test_localhost_cluster()
+  # set_gpu_session()
+  # test_localhost_cluster()
   test_localhost_cluster_env()
