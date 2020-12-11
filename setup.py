@@ -10,5 +10,6 @@ setup(name='rltoolkit',
         'keras==2.3.1', 
         'gym>=0.16.0', 
         'matplotlib>=2.1.0'
+        'GPUtil>=1.4.0'
       ],
     )
