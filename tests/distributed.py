@@ -61,5 +61,4 @@ def test_localhost_cluster_env():
 
 if __name__ == '__main__':
   test_localhost_cluster()
-  # time.sleep(3) #Await socket to become available
   test_localhost_cluster_env()

@@ -1,11 +1,14 @@
 import os
 import time
+import math
 import types
 import queue
 import socket
+import GPUtil
 import logging
 import warnings
 import datetime
+import numpy as np
 import multiprocessing
 from   copy                     import deepcopy
 from   rltoolkit.utils          import test_network, silence_function
@@ -15,15 +18,21 @@ from   multiprocessing.managers import BaseManager, SyncManager
 
 with warnings.catch_warnings():
   #disable warnings in tensorflow subprocesses
-  warnings.simplefilter("ignore")
+  # warnings.simplefilter("ignore")
   os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-  logging.disable(logging.WARNING)
+  # logging.disable(logging.WARNING)
 
   #Import predefined context for client spawning
   import tensorflow as tf
   import keras
   from keras.models import clone_model
+  from keras.backend.tensorflow_backend import set_session
   import rltoolkit
+
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  sess = tf.Session(config=config)
+  set_session(sess)
 
 # if os.name != 'nt':
 #   try:
@@ -276,7 +285,7 @@ class DistributedBackend:
 
   def __init__(self, server_ip='127.0.0.1', port=50000, authkey=b'rltoolkit', 
               timeout=None, network_generator=None, 
-              use_gpu=False, require_gpu=False):
+              gpus=None, processes_per_gpu=None):
     """
       Initializes a Distributed & Multicore Backend Remote Manager.
 
@@ -289,12 +298,10 @@ class DistributedBackend:
         If a task takes longer, the server ceases to await a response.
       network_generator: function. Function that returns a Keras model. 
         Used for client nodes to interpret network architecture and graph context.
-
-      ## NOT IMPLEMENTED
-      use_gpu: Specifies if the Backend should look for GPUs.
-      require_gpu: Specifies if the Backend should spawn a process in absence 
-        of an available GPU. Set to True if the Backend should wait for a GPU 
-        to become available. Overrides passed in value of `use_gpu`. Sets to True.
+      gpus: Specifies how many GPUs the Backend should look for.
+      processes_per_gpu: Specifies how many processes should be run in parallel
+        on each available GPU. If None, the Backend will auto infer the maximum 
+        based on network size from `network_generator`.
     """
     
     if network_generator is not None:
@@ -306,13 +313,44 @@ class DistributedBackend:
     self.server_ip = server_ip
     self.manager_creds = (server_ip, port, authkey)
     self.network_generator = network_generator
+
+    if gpus and processes_per_gpu is None:
+      processes_per_gpu = self._get_max_gpu_processes()
     
+    self.gpus = gpus
+    self.processes_per_gpu = processes_per_gpu #Max allowable processes if gpus>0
+  
     # Start a shared manager server and access its queues
     self.manager = ParallelManager(
       address=(server_ip, port), 
       authkey=authkey, 
       timeout=timeout
     )
+
+  def _get_max_gpu_processes(self):
+    """
+      returns the maximum number of GPU processes permissible given a 
+      `network_generator` by measuring that networks memory utilization
+    """
+    mem_usage = self._get_gpu_mem_usage()
+    print('Mem Usage:', mem_usage)
+
+    num_processes = int(1 / mem_usage)
+    return num_processes
+  
+  def _get_gpu_mem_usage(self):
+    """
+      returns the GPU memory allocation of `network_generator`'s session
+    """
+    assert self.network_generator is not None, \
+      "Unable to measure network memory utilization without generator function"
+
+    multi_backend = MulticoreBackend(1)
+    multi_backend.run(get_model_gpu_allocation, self.network_generator)
+    mem_usage = multi_backend.join()[0]
+    mem_usage = math.ceil(mem_usage / .05) * .05 #Round up to nearest 5%
+    multi_backend.shutdown()
+    return mem_usage
   
   def shutdown(self,):
     """
@@ -374,6 +412,14 @@ class DistributedBackend:
     port      = self.port
     authkey   = self.authkey
     server_ip = self.server_ip
+
+    if self.gpus:
+      if self.processes_per_gpu < cores:
+        msg = 'Requested core count exceeds maximum gpu allowance.\n' + \
+          'Setting to core limit: ' + str(self.processes_per_gpu)
+        logging.warning(msg)
+        cores = self.processes_per_gpu
+
     if cores > 1:
       multi_backend = MulticoreBackend(cores=cores)
       for i in range(cores):
@@ -749,7 +795,7 @@ class LocalClusterBackend(DistributedBackend):
       network_generator: function. Function that returns a Keras model. 
         Used for client nodes to interpret network architecture and graph context.
     """
-    super().__init__(*args, **kwargs)
+    silence_function(1, super().__init__, *args, **kwargs)
     print('Initializing LocalClusterBackend Backend.')
     self.manager.start()
 
@@ -757,6 +803,13 @@ class LocalClusterBackend(DistributedBackend):
     authkey   = self.authkey
     server_ip = self.server_ip
     self.manager_creds = (server_ip, port, authkey)
+
+    if self.gpus:
+      if self.processes_per_gpu < cores:
+        msg = 'Requested core count exceeds maximum gpu allowance.\n' + \
+          'Setting to core limit: ' + str(self.processes_per_gpu)
+        logging.warning(msg)
+        cores = self.processes_per_gpu
 
     self.multi_backend = MulticoreBackend(cores+1) #Negligible monitoring core
     for _ in range(cores):
@@ -817,7 +870,7 @@ def backend_test_network(weights, network, env, episodes, seed):
     episodes: How many episodes to test an environment.
     seed:     Random seed to ensure consistency across tests
   """
-
+  logging.error('Running through environment...')
 
   ###CAN THROW ERRORS IN TRY LOOP THAT SHOULD BE REPORTED
   try:
@@ -868,3 +921,26 @@ def clean_noisy_results(results, reference='min'):
   for i, value in enumerate(results):
     if value is None:
       results[i] = ref_value
+
+def get_model_gpu_allocation(network_function):
+  """
+    Returns the amount of GPU memory allocated for a singular neural network 
+    model as a decimal percantage of 1.  
+
+    network_function: Function that returns a keras model
+  """
+  
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  sess = tf.Session(config=config)
+  set_session(sess)
+
+  nn = network_function()
+  input_shape = nn.input_shape[1:]
+
+  fake_inputs = np.random.rand(*nn.input_shape[1:])
+  with tf.device('/gpu:0'):
+    nn.predict(np.expand_dims(fake_inputs, axis=0))
+    gpus = GPUtil.getGPUs()
+    return getattr(gpus[0], 'memoryUtil')
+

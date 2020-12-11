@@ -129,6 +129,8 @@ def subprocess_wrapper(func, res, pid, *args, **kwargs):
     }) 
   except ConnectionRefusedError:
     pass
+  except ConnectionResetError:
+    pass
 
 class CallbackWrapper:
   

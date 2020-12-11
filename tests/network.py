@@ -28,7 +28,7 @@ def test_lstm_mountaincar():
   start_time = datetime.datetime.now()
   model = LSTM_ANN(env, n_timesteps=10, topology=[2,64,64,16])
   
-  avg = test_network(model, env, episodes=10)
+  avg = test_network(model, env, episodes=1)
   dt = (datetime.datetime.now()-start_time).total_seconds()
   print('MountainCar Tested in ', dt, 'seconds.')
 
