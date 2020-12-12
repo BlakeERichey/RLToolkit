@@ -9,7 +9,7 @@ from rltoolkit.agents import LSTM_CNN
 PORT           = 50000
 AUTHKEY        = b'authkey'
 ENV_NAME       = 'BattleZone-v0'
-GPUS           = 1
+GPUS           = 3
 CORES_PER_NODE = 4
 TIMEOUT        = 600  #Max time in seconds for a task (run through env) to complete
 

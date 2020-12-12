@@ -13,6 +13,7 @@ from   rltoolkit.utils    import test_network, silence_function
 from   rltoolkit.wrappers import subprocess_wrapper
 from   rltoolkit.backend  import BaseDispatcher, MulticoreDispatcher, \
   LocalClusterDispatcher, DistributedDispatcher
+import tensorflow as tf
 
 #========== BACKENDS ===========================================================
 
@@ -43,8 +44,18 @@ class DistributedBackend(DistributedDispatcher):
       'Expected function for network generator.'
     self.network_generator = network_generator
 
-    if gpus and processes_per_gpu is None:
-      processes_per_gpu = self._get_max_gpu_processes()
+    if gpus:
+      num_visibile = len(GPUtil.getGPUs()) #Number of visible GPUs
+
+      if num_visibile<gpus:
+        msg = f'Backend requested {gpus} GPUs, but can only see {num_visibile}.\n' + \
+          f'Setting requested GPU count to {num_visibile}.'
+        logging.warning(msg)
+        gpus = num_visibile
+
+      if gpus:
+        if processes_per_gpu is None:
+          processes_per_gpu = self._get_max_gpu_processes()
     
     self.gpus = gpus
     self.processes_per_gpu = processes_per_gpu #Max allowable processes if gpus>0
@@ -87,14 +98,50 @@ class DistributedBackend(DistributedDispatcher):
       cores: Int. How many cores to utilize in addition to the active thread.
     """
 
+    cores = self._get_client_cores(cores)
+
+    if cores > 1:
+      dispatcher = MulticoreDispatcher(cores=cores)
+      for i in range(cores):
+        gpu_id = (None, int(i/self.processes_per_gpu))[self.gpus]
+        dispatcher.run(
+          DistributedBackend._spawn_client_wrapper, 
+          *self.manager_creds, gpu_id
+        )
+      dispatcher.join()
+    else:
+      DistributedBackend._spawn_client_wrapper(*self.manager_creds, 0)
+  
+  @staticmethod
+  def _spawn_client_wrapper(server_ip, port, authkey, gpu_id):
+    """
+      Wrapper for multiprocessing backend to spawn clients in subprocesses.
+    """
+    manager_creds = (server_ip, port, authkey)
+    if gpu_id is not None:
+      with tf.device(f'/gpu:{gpu_id}'):
+        DistributedDispatcher._spawn_client_wrapper(*manager_creds)
+    else:
+      DistributedDispatcher._spawn_client_wrapper(*manager_creds)
+
+  
+  def _get_client_cores(self, cores):
+    """
+      Takes into account number of GPUs and requested number of cores to 
+      identify if cores exceeds maximum gpu allowance. If not using GPUs, then 
+      simply returns `cores`.
+
+      cores: Int. Requested number of cores to be utilized.
+    """
+
     if self.gpus:
       if self.processes_per_gpu < cores:
         msg = 'Requested core count exceeds maximum gpu allowance.\n' + \
           'Setting to core limit: ' + str(self.processes_per_gpu)
         logging.warning(msg)
-        cores = self.processes_per_gpu
-
-    super().spawn_client(cores)
+        cores = self.processes_per_gpu * self.gpus
+    
+    return cores
            
   def test_network(self, weights, env, episodes, seed, network=None, timeout=None):
     """
@@ -134,29 +181,28 @@ class LocalClusterBackend(DistributedBackend):
       timeout: Max time in seconds to permit a Process to run.
       network_generator: function. Function that returns a Keras model. 
         Used for client nodes to interpret network architecture and graph context.
+      gpus: Specifies how many GPUs the Backend should look for.
+      processes_per_gpu: Specifies how many processes should be run in parallel
+        on each available GPU. If None, the Backend will auto infer the maximum 
+        based on network size from `network_generator`.
     """
     print('Initializing LocalClusterBackend Backend.')
     silence_function(1, super().__init__, *args, **kwargs)
     self.manager.start()
 
-    if self.gpus:
-      #To enter this loop, processes_per_core must be an int
-      if self.processes_per_gpu < cores:
-        msg = 'Requested core count exceeds maximum gpu allowance.\n' + \
-          'Setting to core limit: ' + str(self.processes_per_gpu)
-        logging.warning(msg)
-        cores = self.processes_per_gpu
+    cores = self._get_client_cores(cores)
 
     self.dispatcher = MulticoreDispatcher(cores+1) #Negligible monitoring core
     self.dispatcher.run(
       LocalClusterBackend._monitor_active_tasks, *self.manager_creds
     )
 
-    for _ in range(cores):
+    for i in range(cores):
+      gpu_id = (None, int(i/self.processes_per_gpu))[self.gpus]
       self.dispatcher.run(
         silence_function, 1, 
         LocalClusterBackend._spawn_client_wrapper,
-        *self.manager_creds
+        *self.manager_creds, gpu_id
       )
 
   def shutdown(self,):
