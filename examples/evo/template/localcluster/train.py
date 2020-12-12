@@ -6,10 +6,14 @@ from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
 from rltoolkit.methods import Evo
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Graph, Checkpoint
-from rltoolkit.backend.keras import LocalClusterBackend
+from rltoolkit.backend.keras import LocalClusterBackend, set_gpu_session
+
+if GPUS:
+  set_gpu_session()
 
 if __name__ == '__main__':
   #========== Initialize Backend ===============================================
+
   backend = LocalClusterBackend(
     cores=CORES_PER_NODE,
     gpus=GPUS,

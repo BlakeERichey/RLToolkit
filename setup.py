@@ -11,6 +11,6 @@ setup(name='rltoolkit',
         'gym>=0.16.0', 
         'GPUtil>=1.4.0',
         'matplotlib>=2.1.0',
-        'numba>=0.49.1'
+        # 'numba>=0.49.1'
       ],
     )

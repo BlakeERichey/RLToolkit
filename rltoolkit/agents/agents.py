@@ -1,4 +1,3 @@
-import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Dense, LSTM, TimeDistributed, Conv2D, MaxPooling2D, \
   BatchNormalization, Flatten, GlobalAveragePooling2D

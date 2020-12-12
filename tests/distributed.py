@@ -62,5 +62,5 @@ def test_localhost_cluster_env():
 
 if __name__ == '__main__':
   # set_gpu_session()
-  # test_localhost_cluster()
+  test_localhost_cluster()
   test_localhost_cluster_env()

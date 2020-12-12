@@ -6,7 +6,6 @@ from numba import njit
 from copy import deepcopy
 from datetime import datetime
 from gym.utils import seeding
-import tensorflow as tf
 from keras.models import clone_model
 from collections import namedtuple
 from rltoolkit.errors import EarlyStopError

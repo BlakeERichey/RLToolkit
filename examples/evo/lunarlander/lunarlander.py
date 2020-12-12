@@ -51,8 +51,8 @@ if __name__ == '__main__':
   backend = LocalClusterBackend(25, network_generator=create_model)
 
   #========== Train network =====================================================
-  method = Evo(pop_size=250, elites=30)
-  nn = method.train(model, env, generations=250, episodes=10, callbacks=[graph, ckpt], backend=backend)
+  method = Evo(pop_size=250, elites=40)
+  nn = method.train(model, env, generations=250, episodes=5, callbacks=[graph, ckpt], backend=backend)
 
   #========== Save and show rewards =============================================
   version = ['min', 'max', 'avg']
