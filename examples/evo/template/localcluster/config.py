@@ -10,16 +10,16 @@ PORT           = 50000
 AUTHKEY        = b'authkey'
 ENV_NAME       = 'BattleZone-v0'
 GPUS           = 4
-CORES_PER_NODE = 20
-TIMEOUT        = 600  #Max time in seconds for a task (run through env) to complete
+CORES_PER_NODE = 12
+TIMEOUT        = 480  #Max time in seconds for a task (run through env) to complete
 
 ################################################################################
 
 ############### METHOD CONFIG ##################################################
 
-GENERATIONS = 250
-POP_SIZE    = 12
-ELITES      = 4
+GENERATIONS = 50
+POP_SIZE    = 48
+ELITES      = 8
 GOAL        = None
 EPISODES    = 1     #Episodes/Individual/Generation
 

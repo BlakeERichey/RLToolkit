@@ -82,7 +82,7 @@ class DistributedBackend(DistributedDispatcher):
     dispatcher = MulticoreDispatcher(1)
     dispatcher.run(get_model_gpu_allocation, self.network_generator)
     mem_usage = dispatcher.join()[0]
-    mem_usage = math.ceil(mem_usage / .05) * .05 #Round up to nearest 10%
+    mem_usage = math.ceil(mem_usage / .1) * .1 #Round up to nearest 10%
     dispatcher.shutdown()
     return mem_usage
 
@@ -160,11 +160,12 @@ class DistributedBackend(DistributedDispatcher):
     """
 
     if self.gpus:
-      if self.processes_per_gpu * self.gpus < cores:
+      limit = self.processes_per_gpu * self.gpus
+      if limit < cores:
         msg = 'Requested core count exceeds maximum gpu allowance.\n' + \
-          'Setting to core limit: ' + str(self.processes_per_gpu)
+          'Setting to core limit: ' + str(limit)
         logging.warning(msg)
-        cores = self.processes_per_gpu * self.gpus
+        cores = limit
     
     return cores
            

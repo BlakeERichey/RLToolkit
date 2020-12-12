@@ -38,16 +38,17 @@ def backend_test_network(weights, network, env, episodes, seed, gpu_id=None):
   try:
     env = deepcopy(env)
     keras.backend.clear_session()
+    device = ''
     if gpu_id is not None:
-      set_gpu_session(gpu_id)
-
-    if type(network) == types.FunctionType: #Distributed create_model
-      nn = network()
-      # nn.summary() #To identify is session is being cleared
-    else: #Multicore model
-      nn  = clone_model(network)
-    nn.set_weights(weights)
-    avg = test_network(nn, env, episodes, seed=seed)
+      device = f'/device:GPU:{gpu_id}'
+    with tf.device(device):
+      if type(network) == types.FunctionType: #Distributed create_model
+        nn = network()
+        # nn.summary() #To identify is session is being cleared
+      else: #Multicore model
+        nn  = clone_model(network)
+      nn.set_weights(weights)
+      avg = test_network(nn, env, episodes, seed=seed)
   except Exception as e:
     logging.error(f'Exception occured testing network: {e}')
     avg = None
