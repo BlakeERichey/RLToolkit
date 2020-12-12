@@ -2,7 +2,7 @@ import types
 import keras
 import random
 import numpy as np
-from numba import njit
+# from numba import njit
 from copy import deepcopy
 from datetime import datetime
 from gym.utils import seeding
@@ -285,7 +285,7 @@ def duplicate_model(network):
   return truncate_weights(nn.get_weights(), n_decimals=3)
 
 
-@njit
+# @njit
 def breed_strand(strand1, strand2):
   """
     Create a new strand by randomly selecting half the 

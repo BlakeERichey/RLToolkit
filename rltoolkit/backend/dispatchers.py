@@ -266,7 +266,11 @@ class MulticoreDispatcher(BaseDispatcher):
       #Process never started         #process was terminated
       while p._popen is not None and p.exitcode is None:
         pass #Wait until process has ended
-      p.close()
+      
+      try:
+        p.close() #python 3.7+
+      except:
+        pass
     
     self.active = 0
     print('MulticoreDispatcher shutdown.')
@@ -365,7 +369,7 @@ class MulticoreDispatcher(BaseDispatcher):
             i-=1 #back up an index, due to keys.pop()
           
           elif self._time_limit_reached(task): #Task has taken too long, kill it
-            process.kill()
+            process.terminate()
             self.results.put({
               'pid':    task_id,
               'result': None,
