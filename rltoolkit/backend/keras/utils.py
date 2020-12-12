@@ -19,7 +19,7 @@ with warnings.catch_warnings():
   from   keras.models import clone_model
   from   keras.backend.tensorflow_backend import set_session
 
-def backend_test_network(weights, network, env, episodes, seed):
+def backend_test_network(weights, network, env, episodes, seed, gpu_id=None):
   """
     Wraps environment testing so that network recreation happens on subcore and 
     not main thread. 
@@ -30,11 +30,17 @@ def backend_test_network(weights, network, env, episodes, seed):
     env:      a Gym environment
     episodes: How many episodes to test an environment.
     seed:     Random seed to ensure consistency across tests
+    gpu_id:   If leveraging gpus, expects an Int refering to the device_id 
+      number. This will be the only GPU visible to the keras session. If `None`
+      default session status will be used.
   """
 
   try:
     env = deepcopy(env)
     keras.backend.clear_session()
+    if gpu_id is not None:
+      set_gpu_session(gpu_id)
+
     if type(network) == types.FunctionType: #Distributed create_model
       nn = network()
       # nn.summary() #To identify is session is being cleared
@@ -66,11 +72,18 @@ def get_model_gpu_allocation(network_function):
     gpus = GPUtil.getGPUs()
     return getattr(gpus[0], 'memoryUtil')
 
-def set_gpu_session():
+def set_gpu_session(gpu_id=None):
   """
     Sets session to permit gpu growth
+
+    gpu_id:   If leveraging gpus, expects an Int refering to the device_id 
+      number. This will be the only GPU visible to the keras session. If `None`
+      default session status will be used.
   """
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
+  if gpu_id is not None:
+    config.gpu_options.visible_device_list = str(gpu_id) #Only this GPU visible
+  
   sess = tf.Session(config=config)
   set_session(sess)

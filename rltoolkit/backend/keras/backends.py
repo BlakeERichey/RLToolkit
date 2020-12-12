@@ -11,9 +11,8 @@ from   copy               import deepcopy
 from   .utils             import get_model_gpu_allocation, backend_test_network
 from   rltoolkit.utils    import test_network, silence_function
 from   rltoolkit.wrappers import subprocess_wrapper
-from   rltoolkit.backend  import BaseDispatcher, MulticoreDispatcher, \
+from   rltoolkit.backend  import ParallelManager, MulticoreDispatcher, \
   LocalClusterDispatcher, DistributedDispatcher
-import tensorflow as tf
 
 #========== BACKENDS ===========================================================
 
@@ -83,7 +82,7 @@ class DistributedBackend(DistributedDispatcher):
     dispatcher = MulticoreDispatcher(1)
     dispatcher.run(get_model_gpu_allocation, self.network_generator)
     mem_usage = dispatcher.join()[0]
-    mem_usage = math.ceil(mem_usage / .1) * .1 #Round up to nearest 10%
+    mem_usage = math.ceil(mem_usage / .05) * .05 #Round up to nearest 10%
     dispatcher.shutdown()
     return mem_usage
 
@@ -100,30 +99,55 @@ class DistributedBackend(DistributedDispatcher):
 
     cores = self._get_client_cores(cores)
 
+    get_gpu_id = self.gpus is not None and self.gpus>0
     if cores > 1:
       dispatcher = MulticoreDispatcher(cores=cores)
       for i in range(cores):
-        get_get_id = self.gpus is not None and self.gpus>0
-        gpu_id = (None, int(i/self.processes_per_gpu))[get_get_id]
+        gpu_id = (None, int(i/self.processes_per_gpu))[get_gpu_id]
         dispatcher.run(
           DistributedBackend._spawn_client_wrapper, 
           *self.manager_creds, gpu_id
         )
       dispatcher.join()
     else:
-      DistributedBackend._spawn_client_wrapper(*self.manager_creds, 0)
+      gpu_id = (None, 0)[get_gpu_id]
+      DistributedBackend._spawn_client_wrapper(*self.manager_creds, gpu_id)
   
   @staticmethod
   def _spawn_client_wrapper(server_ip, port, authkey, gpu_id):
     """
       Wrapper for multiprocessing backend to spawn clients in subprocesses.
-    """
-    manager_creds = (server_ip, port, authkey)
-    if gpu_id is not None:
-      with tf.device(f'/gpu:{gpu_id}'):
-        DistributedDispatcher._spawn_client_wrapper(*manager_creds)
-    else:
-      DistributedDispatcher._spawn_client_wrapper(*manager_creds)
+
+      gpu_id:   If leveraging gpus, expects an Int refering to the device_id 
+      number. This will be the only GPU visible to the keras session. If `None`
+      default session status will be used.
+    """ 
+    manager = ParallelManager(address=(server_ip, port), authkey=authkey)
+    manager.connect()
+    
+    print('Connected.', manager.address)
+    tasks_queued = False
+    while True:
+      time.sleep(1) #Time delay to not overload the servers incoming packets
+      if tasks_queued is False:
+        tasks_queued = manager.monitor().unpack()
+      else:
+        #Request info to complete task
+        packet = manager.request()
+        
+        #Unpack info and compute result
+        data = packet.unpack()
+        if data is not None:
+          task_id   = data['task_id']
+          func      = data['func']
+          args      = data['args']
+          kwargs    = data['kwargs']
+          if func==backend_test_network:
+            kwargs['gpu_id'] = gpu_id 
+          retval    = func(*args, **kwargs)
+        
+          manager.respond(task_id, retval)
+          tasks_queued=False
 
   
   def _get_client_cores(self, cores):

@@ -10,7 +10,7 @@ PORT           = 50000
 AUTHKEY        = b'authkey'
 ENV_NAME       = 'BattleZone-v0'
 GPUS           = 4
-CORES_PER_NODE = 12
+CORES_PER_NODE = 20
 TIMEOUT        = 600  #Max time in seconds for a task (run through env) to complete
 
 ################################################################################
