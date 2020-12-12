@@ -9,8 +9,8 @@ from rltoolkit.agents import LSTM_CNN
 PORT           = 50000
 AUTHKEY        = b'authkey'
 ENV_NAME       = 'BattleZone-v0'
-GPUS           = 3
-CORES_PER_NODE = 4
+GPUS           = 4
+CORES_PER_NODE = 12
 TIMEOUT        = 600  #Max time in seconds for a task (run through env) to complete
 
 ################################################################################
@@ -18,8 +18,8 @@ TIMEOUT        = 600  #Max time in seconds for a task (run through env) to compl
 ############### METHOD CONFIG ##################################################
 
 GENERATIONS = 250
-POP_SIZE    = 4
-ELITES      = 2
+POP_SIZE    = 12
+ELITES      = 4
 GOAL        = None
 EPISODES    = 1     #Episodes/Individual/Generation
 
