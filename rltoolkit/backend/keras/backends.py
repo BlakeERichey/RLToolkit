@@ -8,7 +8,8 @@ import warnings
 import datetime
 import numpy as np
 from   copy               import deepcopy
-from   .utils             import get_model_gpu_allocation, backend_test_network
+from   .utils             import set_gpu_session, backend_test_network, \
+  get_model_gpu_allocation
 from   rltoolkit.utils    import test_network, silence_function
 from   rltoolkit.wrappers import subprocess_wrapper
 from   rltoolkit.backend  import ParallelManager, MulticoreDispatcher, \
@@ -56,10 +57,15 @@ class DistributedBackend(DistributedDispatcher):
         if processes_per_gpu is None:
           processes_per_gpu = self._get_max_gpu_processes()
     
+    self.dispatchers = []
     self.gpus = gpus
     self.processes_per_gpu = processes_per_gpu #Max allowable processes if gpus>0
   
     super().__init__(server_ip, port, authkey, timeout)
+  
+  def shutdown(self,):
+    for dispatcher in self.dispatchers:
+      dispatcher.shutdown()
 
   def _get_max_gpu_processes(self):
     """
@@ -86,7 +92,7 @@ class DistributedBackend(DistributedDispatcher):
     dispatcher.shutdown()
     return mem_usage
 
-  def spawn_client(self, cores=1):
+  def spawn_client(self, cores=1, hang=True):
     """
       Uses the active thread to connect to the remote server.
       Sets the client to monitor the connected server for tasks. When tasks are 
@@ -95,60 +101,53 @@ class DistributedBackend(DistributedDispatcher):
 
       # Arguments
       cores: Int. How many cores to utilize in addition to the active thread.
+      hang: If `True`, the current process hangs until the spawned client 
+        subprocesses are terminated. Otherwise, the dispatcher managing the 
+        subprocesses is returned.
     """
 
     cores = self._get_client_cores(cores)
 
-    get_gpu_id = self.gpus is not None and self.gpus>0
-    if cores > 1:
+    #Spawn with GPU wrapper
+    if self.gpus is not None and self.gpus>0:
+      dispatcher = MulticoreDispatcher(cores=self.gpus)
+      for i in range(self.gpus):
+        dispatcher.run(
+          DistributedBackend._spawn_gpu_client_wrapper, 
+          *self.manager_creds, self.processes_per_gpu, i
+        )
+    
+    #Spawn with CPU wrapper
+    else:
       dispatcher = MulticoreDispatcher(cores=cores)
       for i in range(cores):
-        gpu_id = (None, int(i/self.processes_per_gpu))[get_gpu_id]
         dispatcher.run(
           DistributedBackend._spawn_client_wrapper, 
-          *self.manager_creds, gpu_id
+          *self.manager_creds
         )
-      dispatcher.join()
-    else:
-      gpu_id = (None, 0)[get_gpu_id]
-      DistributedBackend._spawn_client_wrapper(*self.manager_creds, gpu_id)
-  
-  @staticmethod
-  def _spawn_client_wrapper(server_ip, port, authkey, gpu_id):
-    """
-      Wrapper for multiprocessing backend to spawn clients in subprocesses.
-
-      gpu_id:   If leveraging gpus, expects an Int refering to the device_id 
-      number. This will be the only GPU visible to the keras session. If `None`
-      default session status will be used.
-    """ 
-    manager = ParallelManager(address=(server_ip, port), authkey=authkey)
-    manager.connect()
     
-    print('Connected.', manager.address)
-    tasks_queued = False
-    while True:
-      time.sleep(1) #Time delay to not overload the servers incoming packets
-      if tasks_queued is False:
-        tasks_queued = manager.monitor().unpack()
-      else:
-        #Request info to complete task
-        packet = manager.request()
-        
-        #Unpack info and compute result
-        data = packet.unpack()
-        if data is not None:
-          task_id   = data['task_id']
-          func      = data['func']
-          args      = data['args']
-          kwargs    = data['kwargs']
-          if func==backend_test_network:
-            kwargs['gpu_id'] = gpu_id 
-          retval    = func(*args, **kwargs)
-        
-          manager.respond(task_id, retval)
-          tasks_queued=False
+    self.dispatchers.append(dispatcher)
+    if hang:
+      dispatcher.join()
+    return dispatcher
+  
+  @staticmethod  
+  def _spawn_gpu_client_wrapper(server_ip, port, authkey, processes_per_gpu, gpu_id):
+    """
+      If GPUs are utilized, spawns a subprocess for each GPU up to the 
+      `process_per_gpu` limit.
 
+      Causes known memory leak with orphaned processes after backend is shutdown.
+    """
+    print('Spawning GPU client')
+    set_gpu_session(gpu_id)
+    manager_creds = (server_ip, port, authkey)
+    dispatcher = MulticoreDispatcher(cores=processes_per_gpu) ###This dispatcher gets orphaned in LocalClusterBackend###
+    for i in range(processes_per_gpu):
+      dispatcher.run(
+        DistributedBackend._spawn_client_wrapper, 
+        *manager_creds
+      )
   
   def _get_client_cores(self, cores):
     """
@@ -216,21 +215,15 @@ class LocalClusterBackend(DistributedBackend):
     silence_function(1, super().__init__, *args, **kwargs)
     self.manager.start()
 
-    cores = self._get_client_cores(cores)
-
-    self.dispatcher = MulticoreDispatcher(cores+1) #Negligible monitoring core
-    self.dispatcher.run(
+    dispatcher = MulticoreDispatcher(1) #Negligible monitoring core
+    dispatcher.run(
+      silence_function, 1,
       LocalClusterBackend._monitor_active_tasks, *self.manager_creds
     )
+    self.dispatchers.append(dispatcher)
 
-    for i in range(cores):
-      get_get_id = self.gpus is not None and self.gpus>0
-      gpu_id = (None, int(i/self.processes_per_gpu))[get_get_id]
-      self.dispatcher.run(
-        silence_function, 1, 
-        LocalClusterBackend._spawn_client_wrapper,
-        *self.manager_creds, gpu_id
-      )
+    dispatcher = silence_function(1, self.spawn_client, cores, hang=False)
+    self.dispatchers.append(dispatcher)
 
   def shutdown(self,):
     """
@@ -238,5 +231,5 @@ class LocalClusterBackend(DistributedBackend):
     """
     logging.debug('Shutting down cluster.')
     self.manager.shutdown()
-    silence_function(1, self.dispatcher.shutdown)
+    silence_function(1, super().shutdown)
     print('Cluster shutdown.')

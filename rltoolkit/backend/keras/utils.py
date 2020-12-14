@@ -19,7 +19,7 @@ with warnings.catch_warnings():
   from   keras.models import clone_model
   from   keras.backend.tensorflow_backend import set_session
 
-def backend_test_network(weights, network, env, episodes, seed, gpu_id=None):
+def backend_test_network(weights, network, env, episodes, seed):
   """
     Wraps environment testing so that network recreation happens on subcore and 
     not main thread. 
@@ -38,17 +38,13 @@ def backend_test_network(weights, network, env, episodes, seed, gpu_id=None):
   try:
     env = deepcopy(env)
     keras.backend.clear_session()
-    device = ''
-    if gpu_id is not None:
-      device = f'/device:GPU:{gpu_id}'
-    with tf.device(device):
-      if type(network) == types.FunctionType: #Distributed create_model
-        nn = network()
-        # nn.summary() #To identify is session is being cleared
-      else: #Multicore model
-        nn  = clone_model(network)
-      nn.set_weights(weights)
-      avg = test_network(nn, env, episodes, seed=seed)
+    if type(network) == types.FunctionType: #Distributed create_model
+      nn = network()
+      # nn.summary() #To identify is session is being cleared
+    else: #Multicore model
+      nn  = clone_model(network)
+    nn.set_weights(weights)
+    avg = test_network(nn, env, episodes, seed=seed)
   except Exception as e:
     logging.error(f'Exception occured testing network: {e}')
     avg = None
@@ -84,7 +80,11 @@ def set_gpu_session(gpu_id=None):
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
   if gpu_id is not None:
-    config.gpu_options.visible_device_list = str(gpu_id) #Only this GPU visible
+    # os.environ['CUDA_VISIBLE_DEVIES'] = str(gpu_id) #Only this GPU visible
+    visible = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_visible_devices(visible[gpu_id], 'GPU')
+    visible = tf.config.experimental.list_physical_devices('GPU')
+    print('Visible Devices:', visible)
   
   sess = tf.Session(config=config)
   set_session(sess)
