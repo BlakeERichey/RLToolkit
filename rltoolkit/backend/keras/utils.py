@@ -71,13 +71,9 @@ def get_model_gpu_allocation(network_function):
     gpus = GPUtil.getGPUs()
     return getattr(gpus[0], 'memoryUtil')
 
-def set_gpu_session(gpu_id=None):
+def set_gpu_session():
   """
     Sets session to permit gpu growth
-
-    gpu_id:   If leveraging gpus, expects an Int refering to the device_id 
-      number. This will be the only GPU visible to the keras session. If `None`
-      default session status will be used.
   """
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
@@ -93,8 +89,10 @@ def kill_proc_tree(ppid, including_parent=True):
     including_parent: if `True`, also terminates parent process.
   """
   if ppid != 0:
+    print('PPID:', ppid)
     parent = psutil.Process(ppid)
     for child in parent.children(recursive=True):
+      print('Killing child', child)
       child.kill()
     if including_parent:
       parent.kill()

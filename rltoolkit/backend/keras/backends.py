@@ -15,7 +15,7 @@ from   rltoolkit.utils    import test_network, silence_function
 from   rltoolkit.wrappers import subprocess_wrapper
 from   rltoolkit.backend  import ParallelManager, MulticoreDispatcher, \
   LocalClusterDispatcher, DistributedDispatcher
-from multiprocessing import Array
+from multiprocessing import Array, Process
 
 #========== BACKENDS ===========================================================
 
@@ -66,11 +66,16 @@ class DistributedBackend(DistributedDispatcher):
     super().__init__(server_ip, port, authkey, timeout)
   
   def shutdown(self,):
+    """
+      Terminates all initialized dispatchers and closes all orphaned 
+      subprocesses caused by gpu_wrapper.
+    """
     if hasattr(self, 'gpu_process_ids'):
       for ppid in self.gpu_process_ids:
         kill_proc_tree(ppid)
     for dispatcher in self.dispatchers:
-      dispatcher.shutdown()
+      silence_function(1, dispatcher.shutdown)
+    print('DistributedBackend shutdown.')
 
   def _get_max_gpu_processes(self):
     """
@@ -115,12 +120,17 @@ class DistributedBackend(DistributedDispatcher):
 
     #Spawn with GPU wrapper
     if self.gpus is not None and self.gpus>0:
+      print('Spawning with GPU wrapper')
       gpu_process_ids = Array('i', self.gpus) #Shared data type between subprocesses
       dispatcher = MulticoreDispatcher(cores=self.gpus)
+      
+      remaining = cores #Remaining subprocesses to spawn
       for i in range(self.gpus):
+        processes_to_spawn = min(remaining, self.processes_per_gpu)
+        remaining = max(remaining - self.processes_per_gpu, 0)
         dispatcher.run(
           DistributedBackend._spawn_gpu_client_wrapper, 
-          *self.manager_creds, self.processes_per_gpu, i,
+          *self.manager_creds, processes_to_spawn, i,
           gpu_process_ids
         )
 
@@ -129,6 +139,7 @@ class DistributedBackend(DistributedDispatcher):
     
     #Spawn with CPU wrapper
     else:
+      print('Spawning with CPU wrapper')
       dispatcher = MulticoreDispatcher(cores=cores)
       for i in range(cores):
         dispatcher.run(
@@ -138,7 +149,7 @@ class DistributedBackend(DistributedDispatcher):
     
     self.dispatchers.append(dispatcher)
     if hang:
-      dispatcher.join()
+      dispatcher.join() #wont terminate until subprocesses and orphaned subprocess terminate
     return dispatcher
   
   @staticmethod  
@@ -156,13 +167,13 @@ class DistributedBackend(DistributedDispatcher):
     """
     print('Spawning GPU client')
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id) #Only this GPU visible
+
     manager_creds = (server_ip, port, authkey)
-    dispatcher = MulticoreDispatcher(cores=processes_per_gpu)
     for i in range(processes_per_gpu):
-      dispatcher.run(
-        DistributedBackend._spawn_client_wrapper, 
-        *manager_creds
+      p = Process(
+        target=DistributedBackend._spawn_client_wrapper, args=(manager_creds)
       )
+      p.start()
     
     pid = os.getpid()
     print('Process ID:', pid)
@@ -249,6 +260,6 @@ class LocalClusterBackend(DistributedBackend):
       Terminates open tasks.
     """
     logging.debug('Shutting down cluster.')
-    self.manager.shutdown()
     silence_function(1, super().shutdown)
+    self.manager.shutdown()
     print('Cluster shutdown.')

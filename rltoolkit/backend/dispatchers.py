@@ -63,6 +63,7 @@ class DistributedDispatcher(BaseDispatcher):
       Run on server. Monitors active tasks to ensure they complete within 
       timeout limit. Hangs the active thread.
     """
+    print('Monitoring tasks')
     manager = ParallelManager(address=(server_ip, port), authkey=authkey)
     manager.connect()
 
@@ -115,9 +116,10 @@ class DistributedDispatcher(BaseDispatcher):
     manager = ParallelManager(address=(server_ip, port), authkey=authkey)
     manager.connect()
     
-    print('Connected.', manager.address)
+    print('Spawning Client Wrapper...Connected.', manager.address)
     tasks_queued = False
     while True:
+      print('Checking for tasks')
       time.sleep(1) #Time delay to not overload the servers incoming packets
       if tasks_queued is False:
         tasks_queued = manager.monitor().unpack()
@@ -132,9 +134,12 @@ class DistributedDispatcher(BaseDispatcher):
           func      = data['func']
           args      = data['args']
           kwargs    = data['kwargs']
-          print('Before function call:')
-          visible = tf.config.experimental.get_visible_devices('GPU')
-          print('Visible Devices:', visible, os.environ['CUDA_VISIBLE_DEVICES'])
+          try:
+            print('Before function call:')
+            visible = tf.config.experimental.get_visible_devices('GPU')
+            print('Visible Devices:', visible, os.environ['CUDA_VISIBLE_DEVICES'])
+          except:
+            pass
           retval    = func(*args, **kwargs)
         
           manager.respond(task_id, retval)
@@ -275,11 +280,8 @@ class MulticoreDispatcher(BaseDispatcher):
       while p._popen is not None and p.exitcode is None:
         pass #Wait until process has ended
       
-      try:
-        p.close() #python 3.7+
-      except:
-        pass
-    
+      if hasattr(p, 'close'): #python 3.7+
+        p.close()
     self.active = 0
     print('MulticoreDispatcher shutdown.')
 

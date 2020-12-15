@@ -21,7 +21,7 @@ def create_model():
   return model
 
 def test_multi_gpu():
-  backend = LocalClusterBackend(3, gpus=1, network_generator=create_model)
+  backend = LocalClusterBackend(3, gpus=2, processes_per_gpu=2, network_generator=create_model)
 
   env = gym.make(f'BattleZone-v0')
   model = create_model()
