@@ -10,6 +10,8 @@ from   rltoolkit.wrappers       import subprocess_wrapper
 from   rltoolkit.backend        import BaseDispatcher, ParallelManager
 from   multiprocessing          import Queue, Process
 from   multiprocessing.managers import SyncManager
+import tensorflow as tf
+import os
 
 #========== DISPATCHERS ========================================================
 
@@ -75,10 +77,12 @@ class DistributedDispatcher(BaseDispatcher):
         max_duration = task.get('timeout')
         duration = (datetime.datetime.now() - start_time).total_seconds()
 
+        print('Task:', task_id, max_duration, duration)
         if max_duration and duration > max_duration:
           tasks_to_kill.add(task_id)
       
       if len(tasks_to_kill):
+        print('Killing tasks', tasks_to_kill)
         manager.kill_tasks(tasks_to_kill)
 
   def spawn_client(self, cores=1):
@@ -128,6 +132,9 @@ class DistributedDispatcher(BaseDispatcher):
           func      = data['func']
           args      = data['args']
           kwargs    = data['kwargs']
+          print('Before function call:')
+          visible = tf.config.experimental.get_visible_devices('GPU')
+          print('Visible Devices:', visible, os.environ['CUDA_VISIBLE_DEVICES'])
           retval    = func(*args, **kwargs)
         
           manager.respond(task_id, retval)
@@ -187,6 +194,7 @@ class DistributedDispatcher(BaseDispatcher):
     while not request_results:
       time.sleep(1) #delay to limit servers incoming packets
       completed_tasks = manager.get_completed_tasks().unpack()
+      print('Completed Tasks:', completed_tasks)
 
       #test if all observed tasks are among the completed
       request_results = task_set.difference(completed_tasks) == set()

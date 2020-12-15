@@ -1,10 +1,13 @@
-import time
-import gym
-import datetime
-import rltoolkit
-from rltoolkit.agents import ANN
-from rltoolkit.backend import LocalClusterDispatcher
-from rltoolkit.backend.keras import LocalClusterBackend, set_gpu_session
+import warnings
+with warnings.catch_warnings():
+  warnings.simplefilter('ignore')
+  import time
+  import gym
+  import datetime
+  import rltoolkit
+  from rltoolkit.agents import ANN
+  from rltoolkit.backend import LocalClusterDispatcher
+  from rltoolkit.backend.keras import LocalClusterBackend, set_gpu_session
 
 ########### Helper Functions ###################################################
 

@@ -1,3 +1,4 @@
+import os
 import time
 import math
 import types
@@ -9,11 +10,12 @@ import datetime
 import numpy as np
 from   copy               import deepcopy
 from   .utils             import set_gpu_session, backend_test_network, \
-  get_model_gpu_allocation
+  get_model_gpu_allocation, kill_proc_tree
 from   rltoolkit.utils    import test_network, silence_function
 from   rltoolkit.wrappers import subprocess_wrapper
 from   rltoolkit.backend  import ParallelManager, MulticoreDispatcher, \
   LocalClusterDispatcher, DistributedDispatcher
+from multiprocessing import Array
 
 #========== BACKENDS ===========================================================
 
@@ -39,7 +41,7 @@ class DistributedBackend(DistributedDispatcher):
         on each available GPU. If None, the Backend will auto infer the maximum 
         based on network size from `network_generator`.
     """
-    
+    print('Initializing DistributedBackend Backend.')
     assert type(network_generator) == types.FunctionType, \
       'Expected function for network generator.'
     self.network_generator = network_generator
@@ -64,6 +66,9 @@ class DistributedBackend(DistributedDispatcher):
     super().__init__(server_ip, port, authkey, timeout)
   
   def shutdown(self,):
+    if hasattr(self, 'gpu_process_ids'):
+      for ppid in self.gpu_process_ids:
+        kill_proc_tree(ppid)
     for dispatcher in self.dispatchers:
       dispatcher.shutdown()
 
@@ -110,12 +115,17 @@ class DistributedBackend(DistributedDispatcher):
 
     #Spawn with GPU wrapper
     if self.gpus is not None and self.gpus>0:
+      gpu_process_ids = Array('i', self.gpus) #Shared data type between subprocesses
       dispatcher = MulticoreDispatcher(cores=self.gpus)
       for i in range(self.gpus):
         dispatcher.run(
           DistributedBackend._spawn_gpu_client_wrapper, 
-          *self.manager_creds, self.processes_per_gpu, i
+          *self.manager_creds, self.processes_per_gpu, i,
+          gpu_process_ids
         )
+
+      self.gpu_process_ids = gpu_process_ids
+      print('Added GPU PPIDs', self.gpu_process_ids)
     
     #Spawn with CPU wrapper
     else:
@@ -132,23 +142,32 @@ class DistributedBackend(DistributedDispatcher):
     return dispatcher
   
   @staticmethod  
-  def _spawn_gpu_client_wrapper(server_ip, port, authkey, processes_per_gpu, gpu_id):
+  def _spawn_gpu_client_wrapper(server_ip, port, authkey, 
+      processes_per_gpu, gpu_id, shared_arr):
     """
       If GPUs are utilized, spawns a subprocess for each GPU up to the 
       `process_per_gpu` limit.
 
-      Causes known memory leak with orphaned processes after backend is shutdown.
+      # Arguments 
+      processes_per_gpu: Int. Number of subprocesses to spawn
+      gpu_id: Int. Which GPU to spawn all subprocess on
+      shared_arr: multiprocessing.Array for reporting process_ids to terminate 
+        child processes via `self.shutdown()`
     """
     print('Spawning GPU client')
-    set_gpu_session(gpu_id)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id) #Only this GPU visible
     manager_creds = (server_ip, port, authkey)
-    dispatcher = MulticoreDispatcher(cores=processes_per_gpu) ###This dispatcher gets orphaned in LocalClusterBackend###
+    dispatcher = MulticoreDispatcher(cores=processes_per_gpu)
     for i in range(processes_per_gpu):
       dispatcher.run(
         DistributedBackend._spawn_client_wrapper, 
         *manager_creds
       )
-  
+    
+    pid = os.getpid()
+    print('Process ID:', pid)
+    shared_arr[gpu_id] = pid
+
   def _get_client_cores(self, cores):
     """
       Takes into account number of GPUs and requested number of cores to 
@@ -215,15 +234,15 @@ class LocalClusterBackend(DistributedBackend):
     silence_function(1, super().__init__, *args, **kwargs)
     self.manager.start()
 
+    silence_function(0, self.spawn_client, cores, hang=False)
+    
     dispatcher = MulticoreDispatcher(1) #Negligible monitoring core
     dispatcher.run(
-      silence_function, 1,
+      silence_function, 0,
       LocalClusterBackend._monitor_active_tasks, *self.manager_creds
     )
     self.dispatchers.append(dispatcher)
 
-    dispatcher = silence_function(1, self.spawn_client, cores, hang=False)
-    self.dispatchers.append(dispatcher)
 
   def shutdown(self,):
     """

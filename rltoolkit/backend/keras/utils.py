@@ -1,5 +1,6 @@
 import os
 import types
+import psutil
 import GPUtil
 import logging
 import warnings
@@ -38,6 +39,7 @@ def backend_test_network(weights, network, env, episodes, seed):
   try:
     env = deepcopy(env)
     keras.backend.clear_session()
+    set_gpu_session()
     if type(network) == types.FunctionType: #Distributed create_model
       nn = network()
       # nn.summary() #To identify is session is being cleared
@@ -79,12 +81,20 @@ def set_gpu_session(gpu_id=None):
   """
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
-  if gpu_id is not None:
-    # os.environ['CUDA_VISIBLE_DEVIES'] = str(gpu_id) #Only this GPU visible
-    visible = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_visible_devices(visible[gpu_id], 'GPU')
-    visible = tf.config.experimental.list_physical_devices('GPU')
-    print('Visible Devices:', visible)
-  
   sess = tf.Session(config=config)
   set_session(sess)
+
+def kill_proc_tree(ppid, including_parent=True):
+  """
+    Recursively kills children process to resolve orphaned subprocess 
+    memory leak
+
+    ppid: Int. Parent process ID. 
+    including_parent: if `True`, also terminates parent process.
+  """
+  if ppid != 0:
+    parent = psutil.Process(ppid)
+    for child in parent.children(recursive=True):
+      child.kill()
+    if including_parent:
+      parent.kill()

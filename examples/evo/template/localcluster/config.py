@@ -1,9 +1,12 @@
-import gym
-import keras
-from keras.models import Sequential
-from keras.layers import Dense, LSTM
-from keras.optimizers import Adam
-from rltoolkit.agents import LSTM_CNN
+import warnings
+with warnings.catch_warnings():
+  warnings.simplefilter('ignore')
+  import gym
+  import keras
+  from keras.models import Sequential
+  from keras.layers import Dense, LSTM
+  from keras.optimizers import Adam
+  from rltoolkit.agents import LSTM_CNN
 
 ############### BACKEND CONFIG #################################################
 PORT           = 50000
