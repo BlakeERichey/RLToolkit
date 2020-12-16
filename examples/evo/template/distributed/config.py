@@ -1,25 +1,28 @@
-import gym
-import keras
-from keras.models import Sequential
-from keras.layers import Dense, LSTM
-from keras.optimizers import Adam
-from rltoolkit.agents import LSTM_CNN
+import warnings
+with warnings.catch_warnings():
+  warnings.simplefilter('ignore')
+  import gym
+  import keras
+  from keras.models import Sequential
+  from keras.layers import Dense, LSTM
+  from keras.optimizers import Adam
+  from rltoolkit.agents import LSTM_CNN
 
 ############### BACKEND CONFIG #################################################
 PORT           = 50000
 AUTHKEY        = b'authkey'
 ENV_NAME       = 'BattleZone-v0'
-GPUS           = 1
-CORES_PER_NODE = 4
-TIMEOUT        = 600  #Max time in seconds for a task (run through env) to complete
+GPUS           = 4
+CORES_PER_NODE = 12
+TIMEOUT        = 480  #Max time in seconds for a task (run through env) to complete
 
 ################################################################################
 
 ############### METHOD CONFIG ##################################################
 
 GENERATIONS = 250
-POP_SIZE    = 4
-ELITES      = 2
+POP_SIZE    = 48
+ELITES      = 8
 GOAL        = None
 EPISODES    = 1     #Episodes/Individual/Generation
 

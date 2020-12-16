@@ -21,12 +21,13 @@ def create_model():
   return model
 
 def test_multi_gpu():
-  backend = LocalClusterBackend(3, gpus=2, processes_per_gpu=2, network_generator=create_model)
+  backend = LocalClusterBackend(3, gpus=2, processes_per_gpu=None, network_generator=create_model)
 
   env = gym.make(f'BattleZone-v0')
   model = create_model()
   weights = model.get_weights()
   hashes = []
+  print('Testing MultiGPU...')
   for i in range(3):
     task_id = backend.test_network(weights, env, 1, 1, timeout=2)
     hashes.append(task_id)

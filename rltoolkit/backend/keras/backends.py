@@ -102,7 +102,7 @@ class DistributedBackend(DistributedDispatcher):
     dispatcher.shutdown()
     return mem_usage
 
-  def spawn_client(self, cores=1, hang=True):
+  def spawn_client(self, cores=1, hang=True, silence_level=0):
     """
       Uses the active thread to connect to the remote server.
       Sets the client to monitor the connected server for tasks. When tasks are 
@@ -120,7 +120,7 @@ class DistributedBackend(DistributedDispatcher):
 
     #Spawn with GPU wrapper
     if self.gpus is not None and self.gpus>0:
-      print('Spawning with GPU wrapper')
+      logging.debug('Spawning with GPU wrapper')
       gpu_process_ids = Array('i', self.gpus) #Shared data type between subprocesses
       dispatcher = MulticoreDispatcher(cores=self.gpus)
       
@@ -129,20 +129,21 @@ class DistributedBackend(DistributedDispatcher):
         processes_to_spawn = min(remaining, self.processes_per_gpu)
         remaining = max(remaining - self.processes_per_gpu, 0)
         dispatcher.run(
+          silence_function, silence_level,
           DistributedBackend._spawn_gpu_client_wrapper, 
           *self.manager_creds, processes_to_spawn, i,
           gpu_process_ids
         )
 
       self.gpu_process_ids = gpu_process_ids
-      print('Added GPU PPIDs', self.gpu_process_ids)
     
     #Spawn with CPU wrapper
     else:
-      print('Spawning with CPU wrapper')
+      logging.debug('Spawning with CPU wrapper')
       dispatcher = MulticoreDispatcher(cores=cores)
       for i in range(cores):
         dispatcher.run(
+          silence_function, silence_level,
           DistributedBackend._spawn_client_wrapper, 
           *self.manager_creds
         )
@@ -165,7 +166,7 @@ class DistributedBackend(DistributedDispatcher):
       shared_arr: multiprocessing.Array for reporting process_ids to terminate 
         child processes via `self.shutdown()`
     """
-    print('Spawning GPU client')
+    logging.debug('Spawning GPU client')
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id) #Only this GPU visible
 
     manager_creds = (server_ip, port, authkey)
@@ -176,7 +177,6 @@ class DistributedBackend(DistributedDispatcher):
       p.start()
     
     pid = os.getpid()
-    print('Process ID:', pid)
     shared_arr[gpu_id] = pid
 
   def _get_client_cores(self, cores):
@@ -245,11 +245,11 @@ class LocalClusterBackend(DistributedBackend):
     silence_function(1, super().__init__, *args, **kwargs)
     self.manager.start()
 
-    silence_function(0, self.spawn_client, cores, hang=False)
+    self.spawn_client(cores, hang=False, silence_level=1)
     
     dispatcher = MulticoreDispatcher(1) #Negligible monitoring core
     dispatcher.run(
-      silence_function, 0,
+      silence_function, 1,
       LocalClusterBackend._monitor_active_tasks, *self.manager_creds
     )
     self.dispatchers.append(dispatcher)

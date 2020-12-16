@@ -63,7 +63,7 @@ class DistributedDispatcher(BaseDispatcher):
       Run on server. Monitors active tasks to ensure they complete within 
       timeout limit. Hangs the active thread.
     """
-    print('Monitoring tasks')
+    logging.debug('Monitoring tasks')
     manager = ParallelManager(address=(server_ip, port), authkey=authkey)
     manager.connect()
 
@@ -78,12 +78,11 @@ class DistributedDispatcher(BaseDispatcher):
         max_duration = task.get('timeout')
         duration = (datetime.datetime.now() - start_time).total_seconds()
 
-        print('Task:', task_id, max_duration, duration)
         if max_duration and duration > max_duration:
           tasks_to_kill.add(task_id)
       
       if len(tasks_to_kill):
-        print('Killing tasks', tasks_to_kill)
+        logging.debug('Killing tasks', tasks_to_kill)
         manager.kill_tasks(tasks_to_kill)
 
   def spawn_client(self, cores=1):
@@ -116,10 +115,10 @@ class DistributedDispatcher(BaseDispatcher):
     manager = ParallelManager(address=(server_ip, port), authkey=authkey)
     manager.connect()
     
-    print('Spawning Client Wrapper...Connected.', manager.address)
+    print('Connected.', manager.address)
     tasks_queued = False
     while True:
-      print('Checking for tasks')
+      logging.debug('Checking for tasks')
       time.sleep(1) #Time delay to not overload the servers incoming packets
       if tasks_queued is False:
         tasks_queued = manager.monitor().unpack()
@@ -134,12 +133,6 @@ class DistributedDispatcher(BaseDispatcher):
           func      = data['func']
           args      = data['args']
           kwargs    = data['kwargs']
-          try:
-            print('Before function call:')
-            visible = tf.config.experimental.get_visible_devices('GPU')
-            print('Visible Devices:', visible, os.environ['CUDA_VISIBLE_DEVICES'])
-          except:
-            pass
           retval    = func(*args, **kwargs)
         
           manager.respond(task_id, retval)
@@ -199,7 +192,7 @@ class DistributedDispatcher(BaseDispatcher):
     while not request_results:
       time.sleep(1) #delay to limit servers incoming packets
       completed_tasks = manager.get_completed_tasks().unpack()
-      print('Completed Tasks:', completed_tasks)
+      logging.debug('Completed Tasks:', completed_tasks)
 
       #test if all observed tasks are among the completed
       request_results = task_set.difference(completed_tasks) == set()

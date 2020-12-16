@@ -89,10 +89,8 @@ def kill_proc_tree(ppid, including_parent=True):
     including_parent: if `True`, also terminates parent process.
   """
   if ppid != 0:
-    print('PPID:', ppid)
     parent = psutil.Process(ppid)
     for child in parent.children(recursive=True):
-      print('Killing child', child)
       child.kill()
     if including_parent:
       parent.kill()

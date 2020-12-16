@@ -1,12 +1,18 @@
-import gym
-import socket
-from keras.models import load_model
-from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
-  CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES
-from rltoolkit.methods import Evo
-from rltoolkit.utils import test_network
-from rltoolkit.callbacks import Graph, Checkpoint
-from rltoolkit.backend.keras import DistributedBackend
+import warnings
+with warnings.catch_warnings():
+  warnings.simplefilter('ignore')
+  import gym
+  import socket
+  from keras.models import load_model
+  from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
+    CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES
+  from rltoolkit.methods import Evo
+  from rltoolkit.utils import test_network
+  from rltoolkit.callbacks import Graph, Checkpoint
+  from rltoolkit.backend.keras import DistributedBackend, set_gpu_session
+
+if GPUS:
+  set_gpu_session()
 
 if __name__ == '__main__':
   #========== Initialize Backend ===============================================
@@ -63,10 +69,13 @@ if __name__ == '__main__':
   )
 
   #========== Save and show rewards =============================================
-  version = ['min', 'max', 'avg']
-  graph.show(version=version)
-  graph.save(f'{filename}.png', version=version)
   nn.save('nn.h5')
+  version = ['min', 'max', 'avg']
+  try:
+    graph.show(version=version)
+  except: #Node is headless
+    pass
+  graph.save(f'{filename}.png', version=version)
 
   #========== Evaluate Results ==================================================
   #Load best saved model

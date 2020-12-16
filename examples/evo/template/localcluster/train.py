@@ -70,7 +70,10 @@ if __name__ == '__main__':
   #========== Save and show rewards =============================================
   nn.save('nn.h5')
   version = ['min', 'max', 'avg']
-  graph.show(version=version)
+  try:
+    graph.show(version=version)
+  except: #Node is headless
+    pass
   graph.save(f'{filename}.png', version=version)
 
   #========== Evaluate Results ==================================================
