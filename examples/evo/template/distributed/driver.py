@@ -5,7 +5,8 @@ with warnings.catch_warnings():
   import socket
   from keras.models import load_model
   from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
-    CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES
+    CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES, FILENAME, \
+    CONTINUE
   from rltoolkit.methods import Evo
   from rltoolkit.utils import test_network
   from rltoolkit.callbacks import Graph, Checkpoint
@@ -35,26 +36,23 @@ if __name__ == '__main__':
     pass
 
   #========== Build network =====================================================
-  model = create_model()                #compile network
-
-  #========== Demo ==============================================================
-  filename = 'best_model'
-  load_saved = False
 
   #Load pretrained model
-  if load_saved:
+  if CONTINUE:
     try:
-      model = load_model(f'{filename}.h5')
+      model = load_model(f'{FILENAME}.h5')
     except:
-      pass
-
+      model = create_model() #compile new network
+  else:
+    model = create_model() #compile new network
+      
   model.summary()
 
   #========== Configure Callbacks ===============================================
   #Enable graphing of rewards
   graph = Graph()
   #Make a checkpoint to save best model during training
-  ckpt = Checkpoint(f'{filename}.h5')
+  ckpt = Checkpoint(f'{FILENAME}.h5')
 
   #========== Train network =====================================================
   method = Evo(pop_size=POP_SIZE, elites=ELITES)
@@ -75,18 +73,4 @@ if __name__ == '__main__':
     graph.show(version=version)
   except: #Node is headless
     pass
-  graph.save(f'{filename}.png', version=version)
-
-  #========== Evaluate Results ==================================================
-  #Load best saved model
-  model = load_model(f'{filename}.h5')
-
-  # Test models results for 5 episodes
-  episodes = 5
-  avg = test_network(model, env, episodes=episodes, render=True, verbose=1)
-  print(f'Average after {episodes} episodes:', avg)
-
-  print('Testing 100 times!')
-  episodes = 100
-  avg = test_network(model, env, episodes=episodes, render=False, verbose=0)
-  print(f'Average after {episodes} episodes:', avg)
+  graph.save(f'{FILENAME}.png', version=version)

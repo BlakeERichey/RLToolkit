@@ -4,7 +4,8 @@ with warnings.catch_warnings():
   import gym
   import socket
   from config import create_model, ENV_NAME, PORT, AUTHKEY, TIMEOUT, GPUS,\
-    CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES
+    CORES_PER_NODE, GENERATIONS, POP_SIZE, ELITES, GOAL, EPISODES, FILENAME, \
+    CONTINUE
   from rltoolkit.backend.keras import DistributedBackend, set_gpu_session
 
 if GPUS:

@@ -11,7 +11,7 @@ with warnings.catch_warnings():
 ############### BACKEND CONFIG #################################################
 PORT           = 50000
 AUTHKEY        = b'authkey'
-ENV_NAME       = 'BattleZone-v0'
+ENV_NAME       = 'KungFuMaster-v0'
 GPUS           = 4
 CORES_PER_NODE = 12
 TIMEOUT        = 480  #Max time in seconds for a task (run through env) to complete
@@ -35,7 +35,7 @@ def create_model():
 
   model = LSTM_CNN(
     env,
-    cnn_topology=[64,128,256,512],
-    fcn_topology=[256,128,64]
+    cnn_topology=[128,64,32], 
+    fcn_topology=[32]
   )
   return model

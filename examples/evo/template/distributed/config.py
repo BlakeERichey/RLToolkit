@@ -25,6 +25,8 @@ POP_SIZE    = 48
 ELITES      = 8
 GOAL        = None
 EPISODES    = 1     #Episodes/Individual/Generation
+FILENAME    = 'best_model' #Ckpt Filename
+CONTINUE    = False #Continue from previous ckpt
 
 ################################################################################
 
