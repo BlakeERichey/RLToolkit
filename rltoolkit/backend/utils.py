@@ -1,3 +1,6 @@
+import zlib
+import dill
+import pickle
 import types
 import logging
 from copy import deepcopy
@@ -10,10 +13,66 @@ class Packet:
   """
 
   def __init__(self,data):
-    self.data = data    
+    self.data = data
+    self.times_compressed = 0
+    self.serialize_method = None
   
   def unpack(self,):
+    self.decompress()
     return self.data
+
+  def compress(self, level=1, iterations=None):
+    try:
+      serialized = pickle.dumps(self.data)
+      self.serialize_method = 'pickle'
+    except Exception:
+      serialized = dill.dumps(self.data) #Can throw dill error, should do so.
+      self.serialize_method = 'dill'
+    
+    data = serialized
+    compressed = self._compress(serialized, level)
+    if iterations is None:
+      while len(compressed) < len(data):
+        data = compressed
+        compressed = self._compress(compressed, level) #adds 1 and end that must be offset
+      self.times_compressed -= 1 #offsetting to omit final compression
+
+    elif iterations > 1:
+      for i in range(1, iterations):
+        compressed = self._compress(compressed, level)
+      data = compressed
+    
+    self.data = data
+  
+  def _compress(self, data, level):
+    compressed = zlib.compress(data, level=level)
+    self.times_compressed += 1 #Should add after compress finished so try/catch can be managed elsewhere
+    return compressed
+  
+  def decompress(self):
+    data = self.data
+    times_compressed = self.times_compressed
+    for i in range(times_compressed):
+      data = zlib.decompress(data)
+      self.times_compressed -= 1
+    
+    deserialized = data
+    if self.serialize_method:
+      if self.serialize_method == 'pickle':
+        deserialized = pickle.loads(data)
+        self.serialize_method = None
+      
+      elif self.serialize_method == 'dill':
+        deserialized = dill.loads(data)
+        self.serialize_method = None
+      
+      else:
+        msg = 'Cant Deserialize Packet. ' + \
+          "Expected Serialization method to be one of [\'dill\', \'pickle\'], " + \
+          f'but got {self.serialize_method}.'
+        raise Exception(msg)
+    
+    self.data = deserialized
 
 def clean_noisy_results(results, reference='min'):
   """
