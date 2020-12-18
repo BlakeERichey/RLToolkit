@@ -41,6 +41,8 @@ class Packet:
       for i in range(1, iterations):
         compressed = self._compress(compressed, level)
       data = compressed
+    elif iterations == 1:
+      data = compressed
     
     self.data = data
   

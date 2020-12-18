@@ -9,9 +9,6 @@ from   rltoolkit.utils          import silence_function
 from   rltoolkit.wrappers       import subprocess_wrapper
 from   rltoolkit.backend        import BaseDispatcher, ParallelManager
 from   multiprocessing          import Queue, Process
-from   multiprocessing.managers import SyncManager
-import tensorflow as tf
-import os
 
 #========== DISPATCHERS ========================================================
 
@@ -197,7 +194,10 @@ class DistributedDispatcher(BaseDispatcher):
       #test if all observed tasks are among the completed
       request_results = task_set.difference(completed_tasks) == set()
     
-    results = manager.get_results(task_ids, values_only=values_only).unpack()
+    results = []
+    for task_id in task_ids: #Doing each task sequentially (instead of in bulk) results in 30x speedup
+      result = manager.get_results(task_ids=[task_id], values_only=values_only).unpack()
+      results.extend(result)
     results = self._clean_results(results, values_only, numeric_only, ref_value)
     return results
 

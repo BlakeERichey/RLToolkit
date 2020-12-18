@@ -16,7 +16,7 @@ from rltoolkit.methods import Evo
 from rltoolkit.agents import LSTM_ANN, ANN
 from rltoolkit.utils import test_network
 from rltoolkit.callbacks import Checkpoint, Graph, EarlyStop
-from rltoolkit.backend import MulticoreBackend, DistributedBackend, LocalClusterBackend
+from rltoolkit.backend.keras import MulticoreBackend, DistributedBackend, LocalClusterBackend
 
 filename = 'MountainCar'
 train_from_scratch = True
