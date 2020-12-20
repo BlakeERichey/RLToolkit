@@ -51,7 +51,6 @@ class Packet:
     
     data = serialized
     if threshold is not None and len(data) > threshold: #If packet is sufficiently large, compress
-      print('Compressing...', len(data), threshold)
 
       if iterations is None: #Compress until compression adds bytes
         compressed = self._compress(serialized, level)
