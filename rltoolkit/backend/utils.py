@@ -18,10 +18,30 @@ class Packet:
     self.serialize_method = None
   
   def unpack(self,):
+    """
+      Utility function that decompresses then returns the data stored in the 
+      packet.
+    """
     self.decompress()
     return self.data
 
-  def compress(self, level=1, iterations=None):
+  def compress(self, level=1, iterations=None, threshold=0):
+    """
+      Serializes and compresses `self.data` to reduce payload across Pipes
+      Useful when sending data accross a Proxy or Pipe to a remote manager.
+
+      # Arguments
+      level: ZLIB compress parameter, -1 to 9 that dictates compression vs time
+        efficiency. 1 is lowest compression but fastest. 9 is greatest 
+        compression. 0 means no compression, -1 means to intuit what level will \
+        be the most efficient for speed and memory
+      iterations: How many times to compress. If None, will continuue compression
+        until further compression no longer saves memory.
+      threshold: Maximum size in bytes for the payload before compression is 
+        deemed necessary. If the serialized payload exceeds this much 
+        data, then it will also be compressed. If `None`, then will serialize, 
+        but not compress.
+    """
     try:
       serialized = pickle.dumps(self.data)
       self.serialize_method = 'pickle'
@@ -30,19 +50,21 @@ class Packet:
       self.serialize_method = 'dill'
     
     data = serialized
-    compressed = self._compress(serialized, level)
-    if iterations is None:
-      while len(compressed) < len(data):
-        data = compressed
-        compressed = self._compress(compressed, level) #adds 1 and end that must be offset
-      self.times_compressed -= 1 #offsetting to omit final compression
+    if threshold is not None and len(data) > threshold: #If packet is sufficiently large, compress
+      print('Compressing...', len(data), threshold)
 
-    elif iterations > 1:
-      for i in range(1, iterations):
-        compressed = self._compress(compressed, level)
-      data = compressed
-    elif iterations == 1:
-      data = compressed
+      if iterations is None: #Compress until compression adds bytes
+        compressed = self._compress(serialized, level)
+        while len(compressed) < len(data):
+          data = compressed
+          compressed = self._compress(compressed, level) #adds 1 and end that must be offset
+        self.times_compressed -= 1 #offsetting to omit final compression
+
+      elif iterations >= 1:
+        compressed = serialized
+        for i in range(iterations):
+          compressed = self._compress(compressed, level)
+        data = compressed
     
     self.data = data
   
@@ -52,6 +74,10 @@ class Packet:
     return compressed
   
   def decompress(self):
+    """
+      Identifies if deserialization or decompression is necessary. If so, 
+      this function deserializes and/or decompresses the stored data.
+    """
     data = self.data
     times_compressed = self.times_compressed
     for i in range(times_compressed):
